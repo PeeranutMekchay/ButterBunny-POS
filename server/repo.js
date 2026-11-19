@@ -51,7 +51,7 @@ function orderOut(r, items) {
     subtotal: r.subtotal, promos: json(r.promos, []), promoTotal: r.promo_total, manual: r.manual, pointsUsed: r.points_used, pointsDisc: r.points_disc,
     voucherName: r.voucher_name, total: r.total, vat: r.vat, tendered: r.tendered, change: r.change, note: r.note,
     memberId: r.member_phone, memberName: r.member_name, pointsEarned: r.points_earned, staffId: r.staff_id, staffName: r.staff_name,
-    readyAt: r.ready_at, doneAt: r.done_at, voidReason: r.void_reason, voidBy: r.void_by, voidAt: r.void_at, shiftId: r.shift_id };
+    readyAt: r.ready_at, doneAt: r.done_at, voidReason: r.void_reason, voidBy: r.void_by, voidAt: r.void_at, shiftId: r.shift_id, manualBy: r.manual_by };
 }
 
 /* ---------- reads ---------- */
@@ -207,6 +207,8 @@ function saveShop(db, d) {
   if (d.pointsPer !== undefined) out.pointsPer = num(d.pointsPer, "อัตราแต้ม", {min: 1, max: 10000, int: true});
   if (d.dayStartHour !== undefined) out.dayStartHour = num(d.dayStartHour, "เวลาเริ่มวันใหม่", {min: 0, max: 6, int: true});
   if (d.birthdayMultiplier !== undefined) out.birthdayMultiplier = num(d.birthdayMultiplier, "ตัวคูณแต้มเดือนเกิด", {min: 1, max: 5, int: true});
+  if (d.discountLimitBaht !== undefined) out.discountLimitBaht = num(d.discountLimitBaht, "เพดานส่วนลดของแคชเชียร์ (บาท)", {min: 0, max: 1e5});
+  if (d.discountLimitPct !== undefined) out.discountLimitPct = num(d.discountLimitPct, "เพดานส่วนลดของแคชเชียร์ (%)", {min: 0, max: 100});
   if (d.poundPrice !== undefined) out.poundPrice = num(d.poundPrice, "ราคาเค้กต่อปอนด์", {min: 1, max: 1e5});
   if (d.lowStockAt !== undefined) out.lowStockAt = num(d.lowStockAt, "จำนวนแจ้งเตือนสต็อก", {min: 0, max: 999, int: true});
   db.prepare("INSERT INTO config (key, value) VALUES ('shop', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(JSON.stringify(out));

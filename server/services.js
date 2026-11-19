@@ -59,6 +59,13 @@ function checkout(db, body, staff, now = new Date()) {
     const P = pricing.price({ lines, promos: R.listPromos(db), coupon: body.coupon, manualDisc: body.manualDisc, member, voucher, shop, now });
     if (body.expectTotal != null && Math.abs(Number(body.expectTotal) - P.total) > 0.009)
       throw new HttpError(409, `ยอดบิลเปลี่ยนเป็น ฿${P.total.toFixed(2)} (ราคาหรือโปรโมชั่นอาจเพิ่งถูกแก้) ตรวจบิลแล้วกดชำระอีกครั้ง`);
+    // special discount above the cashier's limit needs a manager's one-time approval
+    let approval = null;
+    if (P.manual > 0 && staff.role !== "manager" && pricing.discountNeedsApproval(P.manual, P.subtotal, shop)) {
+      approval = body.approval ? db.prepare("SELECT * FROM approvals WHERE token = ?").get(String(body.approval)) : null;
+      if (!approval || approval.used_at || approval.expires_at < Date.now() || approval.amount + 0.009 < P.manual)
+        throw new HttpError(403, "ส่วนลดพิเศษเกินสิทธิ์แคชเชียร์ ต้องให้ผู้จัดการใส่ PIN อนุมัติก่อน");
+    }
     const tendered = pay === "cash" ? R.num(body.tendered, "จำนวนเงินที่รับ") : P.total;
     if (body.paymentId && pay !== "qr") throw bad("รายการชำระเงิน QR ใช้ได้กับการจ่ายแบบพร้อมเพย์เท่านั้น");
     if (tendered < P.total) throw bad("รับเงินมาไม่พอ");
@@ -89,6 +96,12 @@ function checkout(db, body, staff, now = new Date()) {
     const ins = db.prepare("INSERT INTO order_items (order_id, line, menu_id, name, cat, unit, qty, opt, sweet, reward_id, pts) VALUES (?,?,?,?,?,?,?,?,?,?,?)");
     lines.forEach((l, i) => ins.run(oid, i + 1, l.id, l.name, l.cat, l.unit, l.qty, l.opt, l.sweet, l.reward, l.pts));
     db.prepare("UPDATE orders SET shift_id = ? WHERE id = ?").run(shift.id, oid);
+    if (P.manual > 0) {
+      const by = approval ? approval.manager_name : staff.role === "manager" ? staff.name : null;
+      db.prepare("UPDATE orders SET manual_by = ? WHERE id = ?").run(by, oid);
+      if (approval) db.prepare("UPDATE approvals SET used_at = ?, order_id = ? WHERE id = ?").run(t, oid, approval.id);
+      require("./audit").log(db, staff, "order_discount", `คิว ${queue}`, { amount: P.manual, subtotal: P.subtotal, approvedBy: by });
+    }
     // auto-confirmed QR: the provider must report this exact amount as paid, and it can be used once
     if (body.paymentId) db.prepare("UPDATE orders SET ref = ? WHERE id = ?").run(require("./payments").claimForOrder(db, String(body.paymentId), P.total, oid), oid);
     const lowStock = [], th = Number(shop.lowStockAt) || 0;

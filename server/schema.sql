@@ -253,3 +253,29 @@ CREATE TABLE IF NOT EXISTS qr_payments (
   staff_name   TEXT,
   qr           TEXT                     -- data URL of the provider's QR image
 );
+
+-- Who changed what (prices, stock, points, staff, settings, voids, discounts, failed sign-ins).
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at INTEGER NOT NULL,
+  staff_name TEXT,
+  action     TEXT NOT NULL,
+  target     TEXT,
+  detail     TEXT              -- JSON
+);
+CREATE INDEX IF NOT EXISTS audit_time ON audit_log(created_at);
+
+-- A manager's PIN approval for one discount, valid for 10 minutes and usable once.
+CREATE TABLE IF NOT EXISTS approvals (
+  id           TEXT PRIMARY KEY,
+  token        TEXT NOT NULL UNIQUE,
+  manager_id   TEXT NOT NULL,
+  manager_name TEXT NOT NULL,
+  requested_by TEXT,
+  purpose      TEXT NOT NULL,
+  amount       REAL NOT NULL,
+  created_at   INTEGER NOT NULL,
+  expires_at   INTEGER NOT NULL,
+  used_at      INTEGER,
+  order_id     TEXT
+);

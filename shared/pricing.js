@@ -15,7 +15,8 @@
   const DEFAULT_SHOP = {
     name: "Butter Bunny บัตเตอร์บันนี่", tagline: "เบเกอรี่อบสดทุกเช้า & กาแฟหอมกรุ่น", branch: "", address: "", phone: "", taxId: "",
     promptpay: "", vat: "incl", footer: "ขอบคุณที่แวะมาหาเจ้ากระต่ายเนยนะคะ แล้วมาอีกน้า", pointsPer: 25,
-    dayStartHour: 0, birthdayMultiplier: 2, lowStockAt: 5, poundPrice: 250
+    dayStartHour: 0, birthdayMultiplier: 2, lowStockAt: 5, poundPrice: 250,
+    discountLimitBaht: 20, discountLimitPct: 10
   };
 
   function promoLive(p, now = new Date()) {
@@ -77,5 +78,11 @@
       pointsEarned: member ? Math.floor(total / Math.max(1, sh.pointsPer)) * mult : 0};
   }
 
-  return {r2, dayKey, businessDay, isBirthMonth, DEFAULT_SHOP, promoLive, inScope, promoAmount, price};
+  // A cashier's special discount above either limit needs a manager's PIN.
+  const discountNeedsApproval = (manual, subtotal, shop = {}) => {
+    const sh = {...DEFAULT_SHOP, ...shop}, m = Number(manual) || 0;
+    if (m <= 0) return false;
+    return m > Number(sh.discountLimitBaht) + 0.0001 || (subtotal > 0 && m / subtotal * 100 > Number(sh.discountLimitPct) + 0.0001);
+  };
+  return {r2, dayKey, businessDay, discountNeedsApproval, isBirthMonth, DEFAULT_SHOP, promoLive, inScope, promoAmount, price};
 });

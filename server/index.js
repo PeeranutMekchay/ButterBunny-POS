@@ -16,12 +16,28 @@ const backupDir = path.join(DATA, "backups");
 const app = createApp({ db, uploadsDir: path.join(DATA, "uploads"), backupDir });
 require("./jobs").startJobs(db, { backupDir, backupHour: Number(process.env.BACKUP_HOUR ?? 3) });
 
-app.listen(PORT, HOST, () => {
+// start-pos.bat sets OPEN_BROWSER=1 on the first start so the POS page opens once the server is up
+const openBrowser = () => {
+  if (process.env.OPEN_BROWSER !== "1") return;
+  const url = `http://localhost:${PORT}`;
+  const [cmd, args] = process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
+  try { require("node:child_process").spawn(cmd, args, { detached: true, stdio: "ignore" }).unref(); } catch {}
+};
+const server = app.listen(PORT, HOST, () => {
+  openBrowser();
   console.log(`\nButter Bunny POS พร้อมใช้งาน`);
   console.log(`  เครื่องนี้:        http://localhost:${PORT}`);
   for (const list of Object.values(os.networkInterfaces()))
     for (const a of list || []) if (a.family === "IPv4" && !a.internal) console.log(`  เครื่องอื่นใน Wi-Fi: http://${a.address}:${PORT}`);
   console.log(`  ฐานข้อมูล:         ${path.resolve(process.env.DB_FILE || path.join(DATA, "butterbunny.db"))}\n`);
+});
+
+// already running (e.g. started at boot and someone double-clicks the launcher): just open the page
+server.on("error", e => {
+  if (e.code !== "EADDRINUSE") throw e;
+  console.log(`มีโปรแกรมเปิดอยู่แล้วที่พอร์ต ${PORT}`);
+  openBrowser();
+  process.exit(3);
 });
 
 const stop = () => { try { db.close(); } catch {} process.exit(0); };

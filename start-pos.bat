@@ -1,5 +1,6 @@
 @echo off
 chcp 65001 >nul
+title Butter Bunny POS
 cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
@@ -16,6 +17,13 @@ if not exist node_modules (
     exit /b 1
   )
 )
-start "" http://localhost:3000
-call npm start
-pause
+rem เปิดหน้าเว็บครั้งแรกครั้งเดียว ถ้าโปรแกรมหยุดเองจะเปิดใหม่ให้ภายใน 5 วินาที
+set OPEN_BROWSER=1
+:loop
+node --disable-warning=ExperimentalWarning server\index.js
+if "%errorlevel%"=="3" exit /b 0
+set OPEN_BROWSER=0
+echo.
+echo โปรแกรมหยุดทำงาน จะเปิดใหม่ใน 5 วินาที (ปิดหน้าต่างนี้ถ้าต้องการหยุด)
+timeout /t 5 /nobreak >nul
+goto loop

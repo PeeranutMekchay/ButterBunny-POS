@@ -2,6 +2,7 @@
 const crypto = require("node:crypto");
 const { tx } = require("./db");
 const { HttpError, str, staffOut, listStaff } = require("./repo");
+const AU = require("./audit");
 
 const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
 const MAX_FAILS = 5, LOCK_MS = 30 * 1000;
@@ -48,13 +49,34 @@ function login(db, {staffId, pin}) {
   if (!row) throw new HttpError(404, "ไม่พบพนักงานคนนี้");
   const f = fails.get(row.id);
   if (f && f.until > Date.now()) throw new HttpError(429, `ใส่รหัสผิดหลายครั้ง รอ ${Math.ceil((f.until - Date.now()) / 1000)} วินาที`);
+  pinOrFail(db, row, pin);
+  return { token: createSession(db, row.id), staff: staffOut(row) };
+}
+// shared by sign-in and approvals: five wrong PINs lock that person for 30 seconds
+function pinOrFail(db, row, pin, what = "เข้าสู่ระบบ") {
+  const f = fails.get(row.id);
+  if (f && f.until > Date.now()) throw new HttpError(429, `ใส่รหัสผิดหลายครั้ง รอ ${Math.ceil((f.until - Date.now()) / 1000)} วินาที`);
   if (!checkPin(row, pin)) {
     const n = (f?.until ? 0 : f?.count || 0) + 1; // an expired lock starts the count again
     fails.set(row.id, n >= MAX_FAILS ? { count: 0, until: Date.now() + LOCK_MS } : { count: n, until: 0 });
+    AU.log(db, null, n >= MAX_FAILS ? "pin_locked" : "pin_failed", row.name, { for: what });
     throw new HttpError(401, "รหัส PIN ไม่ถูกต้อง");
   }
   fails.delete(row.id);
-  return { token: createSession(db, row.id), staff: staffOut(row) };
+}
+
+// A manager types their PIN on the cashier's screen to allow one discount.
+function approve(db, { managerId, pin, amount, purpose = "discount" }, requester) {
+  const row = db.prepare("SELECT * FROM staff WHERE id = ? AND active = 1 AND role = 'manager'").get(String(managerId || ""));
+  if (!row) throw new HttpError(404, "เลือกผู้จัดการที่จะอนุมัติ");
+  const amt = Number(amount);
+  if (!Number.isFinite(amt) || amt <= 0 || amt > 1e6) throw new HttpError(400, "จำนวนส่วนลดไม่ถูกต้อง");
+  pinOrFail(db, row, pin, "อนุมัติส่วนลด");
+  const token = crypto.randomBytes(24).toString("hex"), t = Date.now();
+  db.prepare("INSERT INTO approvals (id, token, manager_id, manager_name, requested_by, purpose, amount, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?)")
+    .run("ap" + crypto.randomBytes(6).toString("hex"), token, row.id, row.name, requester.name, purpose, Math.round(amt * 100) / 100, t, t + 10 * 60 * 1000);
+  AU.log(db, staffOut(row), "discount_approved", requester.name, { amount: amt });
+  return { token, managerName: row.name, amount: Math.round(amt * 100) / 100, expiresAt: t + 10 * 60 * 1000 };
 }
 const logout = (db, token) => db.prepare("DELETE FROM sessions WHERE token = ?").run(token);
 
@@ -89,4 +111,4 @@ function deleteStaff(db, sid, me) {
   });
 }
 
-module.exports = { setup, login, logout, staffForToken, saveStaff, deleteStaff };
+module.exports = { setup, login, logout, staffForToken, saveStaff, deleteStaff, approve };

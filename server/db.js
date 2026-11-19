@@ -17,6 +17,7 @@ function openDb(file) {
 const COLUMNS = [
   ["members", "birthday", "TEXT"],   // "MM-DD"
   ["orders", "shift_id", "TEXT"],
+  ["orders", "manual_by", "TEXT"],   // who approved the special discount
 ];
 function migrate(db) {
   for (const [table, col, type] of COLUMNS) {

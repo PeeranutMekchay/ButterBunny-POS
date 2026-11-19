@@ -306,3 +306,65 @@ test("qr payments: Opn Payments charge is created, polled and claimed", async ()
   await call("PUT", "/payment", { provider: "none" }, mgr);
   stub.close(); delete process.env.OPN_API_BASE;
 });
+
+test("discounts: above the cashier's limit a manager PIN approves it once", async () => {
+  const me = (await call("GET", "/auth/me", undefined, mgr)).body.staff;
+  const bill = extra => ({ lines: [{ id: "m-strawshort", qty: 1 }], pay: "card", manualDisc: 30, ...extra });
+  const blocked = await call("POST", "/orders", bill(), cashier);
+  assert.equal(blocked.status, 403);
+  // small discounts within the limit need nothing
+  assert.equal((await call("POST", "/orders", { ...bill(), manualDisc: 5 }, cashier)).status, 200);
+  assert.equal((await call("POST", "/auth/approve", { managerId: me.id, pin: "9999", amount: 30 }, cashier)).status, 401);
+  assert.equal((await call("POST", "/auth/approve", { managerId: "u-mew2", pin: "2468", amount: 30 }, cashier)).status, 404, "cashiers cannot approve");
+  const ap = await call("POST", "/auth/approve", { managerId: me.id, pin: "1234", amount: 30 }, cashier);
+  assert.equal(ap.status, 200); assert.equal(ap.body.approval.managerName, me.name);
+  assert.equal((await call("POST", "/orders", { ...bill(), manualDisc: 40, approval: ap.body.approval.token }, cashier)).status, 403, "approval covers 30 only");
+  const ok = await call("POST", "/orders", bill({ approval: ap.body.approval.token }), cashier);
+  assert.equal(ok.status, 200, JSON.stringify(ok.body)); assert.equal(ok.body.order.manualBy, me.name);
+  assert.equal((await call("POST", "/orders", bill({ approval: ap.body.approval.token }), cashier)).status, 403, "single use");
+  // a manager selling gives the discount directly and is recorded
+  const own = await call("POST", "/orders", bill(), mgr);
+  assert.equal(own.status, 200); assert.equal(own.body.order.manualBy, me.name);
+  // the shop can raise the limit
+  await call("PUT", "/config/shop", { discountLimitBaht: 100, discountLimitPct: 100 }, mgr);
+  assert.equal((await call("POST", "/orders", bill(), cashier)).status, 200);
+  await call("PUT", "/config/shop", { discountLimitBaht: 20, discountLimitPct: 10 }, mgr);
+});
+
+test("audit: price changes, stock, points, voids and failed PINs are recorded", async () => {
+  await call("PUT", "/menu/m-latte", { ...(await call("GET", "/bootstrap", undefined, mgr)).body.menu.find(m => m.id === "m-latte"), price: 77 }, mgr);
+  await call("POST", "/stock/m-eggtart/add", { qty: 5 }, mgr);
+  await call("PATCH", "/members/0812345678", { points: 999 }, mgr);
+  assert.equal((await call("GET", "/audit", undefined, cashier)).status, 403);
+  const list = (await call("GET", "/audit", undefined, mgr)).body.entries;
+  const find = a => list.find(e => e.action === a);
+  assert.deepEqual(find("menu_update").detail.price[1], 77);
+  assert.equal(find("stock_add").detail.qty, 5);
+  assert.equal(find("member_points").detail.points[1], 999);
+  assert.ok(find("pin_failed") && find("pin_locked"));
+  assert.ok(find("discount_approved") && list.some(e => e.action === "order_discount" && e.detail.approvedBy));
+  assert.ok(find("order_void"));
+  assert.equal(JSON.stringify(list).includes("skey_"), false, "secrets never land in the log");
+  const q = (await call("GET", "/audit?q=" + encodeURIComponent("ลาเต้"), undefined, mgr)).body.entries;
+  assert.ok(q.length >= 1 && q.every(e => JSON.stringify(e).includes("ลาเต้")));
+});
+
+test("backup: each backup is copied to a second (cloud-synced) folder", async () => {
+  const B = require("../server/backup");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "bb-bk-")), local = path.join(root, "local"), cloud = path.join(root, "Google Drive", "ButterBunny");
+  assert.equal((await call("PUT", "/backup-settings", { copyDir: "relative/folder" }, mgr)).status, 400);
+  const s = await call("PUT", "/backup-settings", { copyDir: cloud }, mgr);
+  assert.equal(s.status, 200); assert.equal(s.body.settings.copyDir, cloud);
+  const b = B.backupNow(db, local);
+  assert.equal(b.copyError, null);
+  assert.ok(fs.existsSync(path.join(cloud, b.name)));
+  assert.equal(fs.statSync(path.join(cloud, b.name)).size, fs.statSync(path.join(local, b.name)).size);
+  assert.ok((await call("GET", "/backup-settings", undefined, mgr)).body.settings.lastCopy);
+  // a folder that disappears (drive unplugged) is reported, the local backup still happens
+  B.saveCopy(db, { copyDir: path.join(root, "file-not-folder") }); fs.writeFileSync(path.join(root, "x"), ""); fs.rmSync(path.join(root, "file-not-folder"), { recursive: true });
+  fs.writeFileSync(path.join(root, "file-not-folder"), "");
+  const b2 = B.backupNow(db, local);
+  assert.ok(b2.copyError); assert.ok(fs.existsSync(path.join(local, b2.name)));
+  assert.ok((await call("GET", "/backup-settings", undefined, mgr)).body.settings.lastCopyError);
+  await call("PUT", "/backup-settings", { copyDir: "" }, mgr);
+});

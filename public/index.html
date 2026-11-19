@@ -556,7 +556,7 @@ const S = {
   menu: [], stock: {}, promos: [], members: [], staff: [], shop: {}, today: [], rewards: [], todayRedeems: [],
   loaded: {menu:false, staff:false},
   staffMe: null, view: "pos",
-  cart: [], otype: "dine", cat: "all", query: "", coupon: "", manualDisc: 0, member: null, voucher: null, note: "",
+  cart: [], otype: "dine", cat: "all", query: "", coupon: "", manualDisc: 0, discountOk: null, member: null, voucher: null, note: "",
   rep: {range: "today", from: dayKey(Date.now()), to: dayKey(Date.now()), orders: null, loading: false},
   ticketOpen: false, readOnlyMsg: "", online: true, pub: null, todayKey: null,
   shift: null, preorders: [], preDay: "all", dash: null, bake: null, shiftHist: null, backups: null, line: null
@@ -647,7 +647,7 @@ const store = {
 function endSession(msg){
   clearDraft();
   api.token = null; ss.set("bb-token", null);
-  Object.assign(S, {staffMe: null, cart: [], member: null, voucher: null, coupon: "", manualDisc: 0, note: ""});
+  Object.assign(S, {staffMe: null, cart: [], member: null, voucher: null, coupon: "", manualDisc: 0, discountOk: null, note: ""});
   pinFor = null; store.loadPublic(); store.connect(); if (msg) toast(msg);
 }
 
@@ -728,7 +728,7 @@ function draw(){
   if (!S.staffMe) { $("#root").innerHTML = renderLogin(); drawDots(); applyDraft(); restore(keepFocus, selS); return; }
   if (!isMgr() && NAV.find(n => n[0] === S.view)?.[2]) S.view = "pos";
   const pend = S.today.filter(o => o.status === "preparing").length;
-  const views = {dash: viewDash, pre: viewPre, shift: viewShift, bake: viewBake, pos: viewPOS, orders: viewOrders, members: viewMembers, menu: viewMenu, promos: viewPromos, rewards: viewRewards, report: viewReport, shop: viewShop};
+  const views = {dash: viewDash, pre: viewPre, shift: viewShift, bake: viewBake, pos: viewPOS, orders: viewOrders, members: viewMembers, menu: viewMenu, promos: viewPromos, rewards: viewRewards, report: viewReport, shop: viewShop, audit: viewAudit};
   $("#root").innerHTML = `<div class="app">
     <nav class="rail" aria-label="เมนูหลัก">
       <div class="logo" title="${esc(shop().name)}">${BUNNY}</div>
@@ -801,7 +801,7 @@ function viewPOS(){
         <div class="row"><span>รวม ${n ? `(${n} ชิ้น)` : ""}</span><span>${baht(P.subtotal)}</span></div>
         ${P.applied.map(a => `<div class="row good small"><span>${esc(a.name)}</span><span>−${baht(a.amt, 1)}</span></div>`).join("")}
         ${S.coupon && !P.codeValid ? `<div class="row small" style="color:var(--rose)"><span>คูปอง ${esc(S.coupon)} ใช้ไม่ได้ตอนนี้</span></div>` : ""}
-        ${P.manual ? `<div class="row good small"><span>ส่วนลดพิเศษ</span><span>−${baht(P.manual, 1)}</span></div>` : ""}
+        ${P.manual ? `<div class="row good small"><span>ส่วนลดพิเศษ${S.discountOk ? ` <span class="pill green">อนุมัติโดย ${esc(S.discountOk.managerName)}</span>` : ""}</span><span>−${baht(P.manual, 1)}</span></div>` : ""}
         ${P.pointsDisc ? `<div class="row good small"><span>${esc(P.voucherName)} <button class="linkx" data-unvoucher aria-label="เอาส่วนลดออก">×</button></span><span>−${baht(P.pointsDisc, 1)}</span></div>` : ""}
         ${P.pointsUsed ? `<div class="row small" style="color:var(--ink)"><span>ตัดแต้มสมาชิก</span><span>−${P.pointsUsed} แต้ม</span></div>` : ""}
         <div class="row big"><span>ยอดชำระ</span><span>${baht(P.total, 1)}</span></div>
@@ -891,8 +891,41 @@ function updateChange(){
   else if (payM === "qr") btn.disabled = !shop().promptpay && !autoQrOn();
   else btn.disabled = false;
 }
+// Above the cashier's limit a manager types their PIN; the approval covers that amount once, for 10 minutes.
+const needsApproval = P => !isMgr() && BBPricing.discountNeedsApproval(P.manual, P.subtotal, shop());
+const approvalOk = P => S.discountOk && S.discountOk.amount + 0.009 >= P.manual && S.discountOk.expiresAt > Date.now();
+function askApproval(amount, done){
+  const mgrs = S.staff.filter(s => s.role === "manager" && s.active !== false), sh = shop();
+  let who = mgrs[0]?.id, buf = "";
+  modal(`<div class="mh"><h2>ขออนุมัติส่วนลด</h2><button class="x" data-close aria-label="ปิด">×</button></div>
+    <p style="margin:0">ส่วนลดพิเศษ <b>${baht(amount, 1)}</b> เกินสิทธิ์แคชเชียร์ (ไม่เกิน ${baht(sh.discountLimitBaht)} หรือ ${sh.discountLimitPct}% ของบิล) ให้ผู้จัดการใส่ PIN</p>
+    <div class="row" id="apWho" style="gap:8px;flex-wrap:wrap;justify-content:center">${mgrs.map(m => `<button type="button" class="chip" data-apwho="${esc(m.id)}" aria-pressed="${m.id === who}">${esc(m.name)}</button>`).join("") || `<span class="small muted">ยังไม่มีผู้จัดการในระบบ</span>`}</div>
+    <div class="dots" id="apDots"></div><div class="err" id="apErr"></div>
+    <div class="keypad">${[1,2,3,4,5,6,7,8,9].map(n => `<button type="button" data-ap="${n}">${n}</button>`).join("")}<button type="button" data-close style="font-size:16px">ยกเลิก</button><button type="button" data-ap="0">0</button><button type="button" data-apdel style="font-size:16px">ลบ</button></div>`, "", false);
+  const dots = () => $("#apDots").innerHTML = [0,1,2,3].map(i => `<i class="${i < buf.length ? "on" : ""}"></i>`).join("");
+  dots();
+  $("#modalRoot").onclick = async e => {
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.apwho) { who = t.dataset.apwho; $$("[data-apwho]").forEach(x => x.setAttribute("aria-pressed", x === t)); return; }
+    if ("apdel" in t.dataset) { buf = buf.slice(0, -1); return dots(); }
+    if (!t.dataset.ap || buf.length >= 4) return;
+    buf += t.dataset.ap; dots();
+    if (buf.length < 4) return;
+    try {
+      const r = await api.req("POST", "/api/auth/approve", {managerId: who, pin: buf, amount});
+      S.discountOk = r.approval; closeModal(); toast(`${r.approval.managerName} อนุมัติส่วนลดแล้ว`); done && done();
+    } catch (err) { buf = ""; dots(); $("#apErr").textContent = err.message; }
+  };
+}
+function setManualDisc(v){
+  S.manualDisc = Math.max(0, Number(v) || 0);
+  if (S.discountOk && S.discountOk.amount + 0.009 < S.manualDisc) S.discountOk = null;
+  const P = priceCart();
+  if (needsApproval(P) && !approvalOk(P)) setTimeout(() => askApproval(P.manual, render), 0);
+}
 async function confirmPay(opts = {}){
   const P = priceCart(); const btn = $("#confirmPay") || {};
+  if (needsApproval(P) && !approvalOk(P)) { S.discountOk = null; return askApproval(P.manual); }
   const tendered = payM === "cash" ? Number($("#cashIn").value) || 0 : P.total;
   if (tendered < P.total) return;
   btn.disabled = true; btn.textContent = "กำลังบันทึก…";
@@ -900,9 +933,9 @@ async function confirmPay(opts = {}){
   const r = await store.call("POST", "/api/orders", {
     lines: S.cart.map(l => ({id: l.id, opt: l.opt, sweet: l.sweet, qty: l.qty, reward: l.reward || null})),
     type: S.otype, pay: payM, tendered, ref, coupon: S.coupon, manualDisc: S.manualDisc, note: S.note.trim(),
-    memberPhone: S.member?.id || null, voucher: S.member && S.voucher ? S.voucher : null, expectTotal: P.total, paymentId: opts.paymentId || null});
+    memberPhone: S.member?.id || null, voucher: S.member && S.voucher ? S.voucher : null, expectTotal: P.total, paymentId: opts.paymentId || null, approval: S.discountOk?.token || null});
   if (!r) { btn.disabled = false; btn.textContent = "ยืนยันรับเงิน"; return; }
-  S.cart = []; S.coupon = ""; S.manualDisc = 0; S.member = null; S.voucher = null; S.note = ""; S.ticketOpen = false;
+  S.cart = []; S.coupon = ""; S.manualDisc = 0; S.discountOk = null; S.member = null; S.voucher = null; S.note = ""; S.ticketOpen = false;
   S.today = [r.order, ...S.today];
   showReceipt(r.order, true);
 }
@@ -1496,7 +1529,7 @@ function reportCSV(X){
 /* ---------- shop settings & staff ---------- */
 function viewShop(){
   const sh = shop();
-  return head("ร้านค้า & พนักงาน") + `<section style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));align-items:start">
+  return head("ร้านค้า & พนักงาน") + `<div class="row" style="justify-content:flex-end;margin:-6px 0 12px"><button class="btn sm" data-nav="audit">ประวัติการแก้ไข (ใครทำอะไร เมื่อไร)</button></div><section style="display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));align-items:start">
     <form id="shopForm" class="card panel form"><h3>ข้อมูลร้านบนใบเสร็จ</h3>
       <div class="field"><label for="s-name">ชื่อร้าน (ภาษาอังกฤษตามด้วยภาษาไทย จะแสดงเป็น 2 บรรทัดในหน้าล็อกอิน)</label><input id="s-name" maxlength="50" value="${esc(sh.name)}"></div>
       <div class="field"><label for="s-tag">คำโปรยร้าน</label><input id="s-tag" maxlength="60" value="${esc(sh.tagline)}"></div>
@@ -1513,6 +1546,9 @@ function viewShop(){
       <div class="g2"><div class="field"><label for="s-dsh">เริ่มวันใหม่เวลา (เลขคิวกลับเป็น #001)</label><select id="s-dsh">${[0,1,2,3,4,5,6].map(h => `<option value="${h}" ${+sh.dayStartHour === h ? "selected" : ""}>${String(h).padStart(2,"0")}:00 น.${h ? " (ร้านเปิดเลยเที่ยงคืน)" : " (เที่ยงคืน)"}</option>`).join("")}</select></div>
         <div class="field"><label for="s-low">เตือนสต็อกใกล้หมดเมื่อเหลือไม่เกิน</label><input id="s-low" type="number" min="0" max="999" value="${sh.lowStockAt}"></div></div>
       <div class="g2"><div class="field"><label for="s-lb">ราคาเค้กปอนด์ (บาท ต่อ 1 ปอนด์)</label><input id="s-lb" type="number" min="1" value="${sh.poundPrice}"></div></div>
+      <div class="g2"><div class="field"><label for="s-dlb">แคชเชียร์ลดเองได้ไม่เกิน (บาท)</label><input id="s-dlb" type="number" min="0" value="${sh.discountLimitBaht}"></div>
+        <div class="field"><label for="s-dlp">และไม่เกิน (% ของบิล)</label><input id="s-dlp" type="number" min="0" max="100" value="${sh.discountLimitPct}"></div></div>
+      <p class="small muted" style="margin:-6px 0 0">ส่วนลดพิเศษที่เกินข้อใดข้อหนึ่ง ต้องให้ผู้จัดการใส่ PIN อนุมัติ และบันทึกชื่อผู้อนุมัติไว้ในบิล</p>
       <div class="actions"><button class="btn primary">บันทึกข้อมูลร้าน</button></div></form>
     <div class="card panel"><div class="row"><h3>พนักงาน</h3><button class="btn sm primary" data-staffedit="">+ เพิ่มพนักงาน</button></div>
       <p class="small muted" style="margin:0">พนักงานเลือกชื่อแล้วใส่ PIN เพื่อเข้ากะ ทุกบิลจะบันทึกชื่อคนขาย แคชเชียร์เข้าได้เฉพาะหน้าขาย ออเดอร์ และสมาชิก</p>
@@ -1558,7 +1594,8 @@ async function viewLoad(v){
     if (v === "dash" && isMgr()) { S.dash = await api.req("GET", "/api/dashboard"); render(); }
     if (v === "bake") { const [plan, w] = await Promise.all([api.req("GET", "/api/bake-plan"), api.req("GET", "/api/waste")]); S.bake = {plan, waste: w.waste}; render(); }
     if (v === "shift" && isMgr()) { S.shiftHist = (await api.req("GET", "/api/shifts")).shifts; render(); }
-    if (v === "shop" && isMgr()) { const [b, l, pm] = await Promise.all([api.req("GET", "/api/backups"), api.req("GET", "/api/line"), api.req("GET", "/api/payment")]); S.backups = b.backups; S.line = l.line; S.payment = pm.payment; render(); }
+    if (v === "shop" && isMgr()) { const [b, l, pm, bs] = await Promise.all([api.req("GET", "/api/backups"), api.req("GET", "/api/line"), api.req("GET", "/api/payment"), api.req("GET", "/api/backup-settings")]); S.backups = b.backups; S.line = l.line; S.payment = pm.payment; S.backupCopy = bs.settings; render(); }
+    if (v === "audit" && isMgr()) { S.audit = (await api.req("GET", "/api/audit?limit=500" + (auditQ ? "&q=" + encodeURIComponent(auditQ) : ""))).entries; render(); }
   } catch (e) { if (e.status !== 401) toast(e.message); }
 }
 
@@ -1881,7 +1918,46 @@ function backupPanel(){
   const list = S.backups;
   return `<div class="card panel"><div class="row"><h3>สำรองข้อมูลอัตโนมัติ</h3><button class="btn sm primary" data-backupnow>สำรองตอนนี้</button></div>
     <p class="small muted" style="margin:0">ระบบสำรองฐานข้อมูลให้เองทุกคืนตอนตี 3 (และตอนเปิดเซิร์ฟเวอร์ถ้าเกิน 1 วัน) เก็บย้อนหลัง 30 ชุดในโฟลเดอร์ <code>data/backups</code></p>
+    ${backupCopyForm()}
     ${list == null ? `<div class="small muted">กำลังโหลด…</div>` : list.length ? list.slice(0, 8).map(b => `<div class="row small" style="padding:6px 0;border-bottom:1px dashed var(--line)"><span>${thDate(b.createdAt)} ${hm(b.createdAt)} · ${(b.size / 1024 / 1024).toFixed(2)} MB</span><button class="btn sm ghost" data-backupdl="${esc(b.name)}">ดาวน์โหลด</button></div>`).join("") + (list.length > 8 ? `<div class="small muted">และอีก ${list.length - 8} ชุด</div>` : "") : `<div class="small muted">ยังไม่มีไฟล์สำรอง</div>`}
+  </div>`;
+}
+function backupCopyForm(){
+  const c = S.backupCopy || {};
+  return `<form id="bcForm" class="form" style="border:1px dashed var(--line);border-radius:12px;padding:12px">
+    <div class="field"><label for="bc-dir">คัดลอกไฟล์สำรองไปอีกที่ (โฟลเดอร์ Google Drive / OneDrive / แฟลชไดรฟ์)</label>
+      <input id="bc-dir" placeholder="เช่น G:\\My Drive\\ButterBunny หรือ C:\\Users\\ชื่อเครื่อง\\OneDrive\\ButterBunny" value="${esc(c.copyDir || "")}"></div>
+    <p class="small muted" style="margin:0">ติดตั้งโปรแกรม Google Drive for desktop หรือ OneDrive ไว้ในเครื่องนี้ แล้วใส่ตำแหน่งโฟลเดอร์ที่ซิงก์ ไฟล์จะขึ้นคลาวด์เองทุกครั้งที่สำรอง ถ้าคอมพัง/หาย ข้อมูลยังอยู่ (เว้นว่าง = ไม่คัดลอก)</p>
+    ${c.lastCopy ? `<div class="small" style="color:var(--accent-ink)">คัดลอกสำเร็จล่าสุด ${thDate(+c.lastCopy)} ${hm(+c.lastCopy)}</div>` : ""}
+    ${c.lastCopyError ? `<div class="small" style="color:var(--rose)">${esc(c.lastCopyError)}</div>` : ""}
+    <div class="err" id="bcErr"></div>
+    <div class="row" style="justify-content:flex-end"><button class="btn sm primary">บันทึกโฟลเดอร์</button></div></form>`;
+}
+let auditQ = "";
+const AUDIT = {menu_create: "เพิ่มเมนู", menu_update: "แก้เมนู", menu_delete: "ลบเมนู", stock_add: "เติม/ปรับสต็อก", promo_create: "เพิ่มโปรโมชั่น", promo_update: "แก้โปรโมชั่น", promo_delete: "ลบโปรโมชั่น", promo_on: "เปิดโปรโมชั่น", promo_off: "ปิดโปรโมชั่น",
+  reward_create: "เพิ่มของรางวัล", reward_update: "แก้ของรางวัล", reward_delete: "ลบของรางวัล", member_update: "แก้ข้อมูลสมาชิก", member_points: "ปรับแต้มสมาชิก", member_delete: "ลบสมาชิก",
+  staff_create: "เพิ่มพนักงาน", staff_update: "แก้พนักงาน", staff_delete: "ลบพนักงาน", shop_settings: "แก้ข้อมูลร้าน", payment_settings: "ตั้งค่ารับเงิน", line_settings: "ตั้งค่า LINE", backup_settings: "ตั้งโฟลเดอร์สำรอง", backup_now: "สำรองข้อมูลเอง",
+  order_void: "ยกเลิกบิล", order_discount: "ให้ส่วนลดพิเศษ", discount_approved: "อนุมัติส่วนลด", redeem_cancel: "ยกเลิกการแลกรางวัล", preorder_cancel: "ยกเลิกออเดอร์ล่วงหน้า", waste: "บันทึกของทิ้ง",
+  shift_open: "เปิดกะ", shift_close: "ปิดกะ", cash_in: "นำเงินเข้าลิ้นชัก", cash_out: "นำเงินออกจากลิ้นชัก", pin_failed: "ใส่ PIN ผิด", pin_locked: "ใส่ PIN ผิดจนถูกล็อก"};
+const AUDIT_WARN = new Set(["menu_delete", "member_points", "member_delete", "staff_delete", "order_void", "order_discount", "pin_locked", "cash_out", "preorder_cancel"]);
+const FIELD = {name: "ชื่อ", price: "ราคา", cat: "หมวด", active: "เปิดขาย", trackStock: "นับสต็อก", opts: "ตัวเลือก", img: "รูป", stock: "สต็อก", points: "แต้ม", birthday: "วันเกิด", role: "ตำแหน่ง", pin: "PIN",
+  qty: "จำนวน", amount: "จำนวนเงิน", subtotal: "ยอดก่อนลด", approvedBy: "อนุมัติโดย", total: "ยอดบิล", reason: "เหตุผล", soldBy: "คนขาย", value: "มูลค่า", expected: "ควรมี", counted: "นับได้", diff: "ส่วนต่าง", openingCash: "เงินทอนตั้งต้น", for: "ตอน"};
+function auditDetail(d){
+  if (!d || typeof d !== "object") return "";
+  const fmt = v => v === null || v === undefined || v === "" ? "–" : v === "manager" ? "ผู้จัดการ" : v === "cashier" ? "แคชเชียร์" : typeof v === "boolean" ? (v ? "ใช่" : "ไม่") : typeof v === "object" ? JSON.stringify(v).slice(0, 60) : String(v);
+  return Object.entries(d).map(([k, v]) => Array.isArray(v) && v.length === 2 && k !== "items" ? `${FIELD[k] || k}: ${esc(fmt(v[0]))} → <b>${esc(fmt(v[1]))}</b>` : `${FIELD[k] || k}: ${esc(fmt(v))}`).join(" · ");
+}
+function viewAudit(){
+  if (!isMgr()) return head("ประวัติการแก้ไข") + `<div class="empty card">เฉพาะผู้จัดการ</div>`;
+  const list = S.audit;
+  return head("ประวัติการแก้ไข") + `<div class="card panel">
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-nav="shop">← กลับหน้าร้านค้า</button><div class="spacer"></div>
+      <form id="auditForm" class="row" style="gap:8px"><input id="auditQ" placeholder="ค้นหา ชื่อคน / เมนู / เบอร์สมาชิก" value="${esc(auditQ)}" style="min-width:240px"><button class="btn sm">ค้นหา</button></form></div>
+    <p class="small muted" style="margin:0">บันทึกทุกครั้งที่มีการแก้ราคา ลบเมนู ปรับสต็อก ปรับแต้ม ยกเลิกบิล ให้ส่วนลดพิเศษ แก้พนักงาน/ตั้งค่า และใส่ PIN ผิด แก้ไขหรือลบประวัตินี้ไม่ได้</p>
+    ${list == null ? `<div class="small muted">กำลังโหลด…</div>` : !list.length ? `<div class="empty">ยังไม่มีประวัติ</div>` :
+      `<div class="tbl-wrap"><table><thead><tr><th>เวลา</th><th>ใคร</th><th>ทำอะไร</th><th>กับอะไร</th><th>รายละเอียด</th></tr></thead><tbody>${list.map(a => `<tr>
+        <td class="small" style="white-space:nowrap">${thDate(a.createdAt, {day: "numeric", month: "short"})} ${hm(a.createdAt)}</td><td>${esc(a.staffName || "–")}</td>
+        <td><span class="pill ${AUDIT_WARN.has(a.action) ? "rose" : ""}">${esc(AUDIT[a.action] || a.action)}</span></td><td>${esc(a.target || "")}</td><td class="small">${auditDetail(a.detail)}</td></tr>`).join("")}</tbody></table></div>`}
   </div>`;
 }
 function linePanel(){
@@ -1922,7 +1998,7 @@ async function opsClick(b, d){
   if ("promotemplate" in d) {
     const r = await store.call("PUT", "/api/promos/" + uid("p"), {name: "ใกล้ปิดร้าน ขนมอบลด 30%", type: "percent", scope: "cat", cat: "bread", value: 30, days: [], start: "19:00", end: "21:00", active: true});
     if (r) { toast("สร้างโปรแล้ว แก้เวลาและหมวดได้ที่ปุ่มแก้ไข"); } return true; }
-  if ("backupnow" in d) { b.disabled = true; try { await api.req("POST", "/api/backups"); toast("สำรองข้อมูลแล้ว"); viewLoad("shop"); } catch (e) { toast(e.message); } b.disabled = false; return true; }
+  if ("backupnow" in d) { b.disabled = true; try { const r = await api.req("POST", "/api/backups"); toast(r.backup.copyError ? "สำรองแล้ว แต่คัดลอกไปโฟลเดอร์ที่สองไม่สำเร็จ" : S.backupCopy?.copyDir ? "สำรองและคัดลอกไปโฟลเดอร์ที่สองแล้ว" : "สำรองข้อมูลแล้ว"); viewLoad("shop"); } catch (e) { toast(e.message); } b.disabled = false; return true; }
   if (d.backupdl) {
     try { const res = await fetch("/api/backups/" + encodeURIComponent(d.backupdl), {headers: {Authorization: "Bearer " + api.token}}); if (!res.ok) throw new Error("ดาวน์โหลดไม่สำเร็จ"); await store.save(d.backupdl, await res.blob()); }
     catch (e) { toast(e.message); } return true; }
@@ -1931,7 +2007,7 @@ async function opsClick(b, d){
 }
 document.addEventListener("submit", async e => {
   const id = e.target.id;
-  if (!["openShiftForm", "moveForm", "closeShiftForm", "wasteForm", "lineForm", "payForm"].includes(id)) return;
+  if (!["openShiftForm", "moveForm", "closeShiftForm", "wasteForm", "lineForm", "payForm", "bcForm", "auditForm"].includes(id)) return;
   e.preventDefault();
   if (id === "openShiftForm") { const r = await store.call("POST", "/api/shifts/open", {openingCash: +$("#os-cash").value || 0}); if (r) { S.shift = r.shift; clearDraft(); toast("เปิดกะแล้ว เริ่มขายได้เลย"); S.view = "pos"; render(); } }
   if (id === "moveForm") { if (await store.call("POST", "/api/shifts/current/moves", {kind: $("#mv-kind").value, amount: +$("#mv-amt").value, reason: $("#mv-why").value})) { clearDraft(); toast("บันทึกแล้ว"); } }
@@ -1948,6 +2024,10 @@ document.addEventListener("submit", async e => {
     if (!items.length) { toast("ใส่จำนวนที่ทิ้งอย่างน้อย 1 เมนู"); return; }
     if (await store.call("POST", "/api/waste", {items, reason: $("#w-why").value})) { clearDraft(); toast("บันทึกของที่ทิ้งแล้ว"); viewLoad("bake"); } }
   if (id === "lineForm") await saveLine();
+  if (id === "auditForm") { auditQ = $("#auditQ").value.trim(); S.audit = null; render(); viewLoad("audit"); }
+  if (id === "bcForm") {
+    try { S.backupCopy = (await api.req("PUT", "/api/backup-settings", {copyDir: $("#bc-dir").value.trim()})).settings; clearDraft(); render(); toast(S.backupCopy.copyDir ? "บันทึกแล้ว ไฟล์สำรองครั้งต่อไปจะถูกคัดลอกไปด้วย" : "ปิดการคัดลอกแล้ว"); }
+    catch (err) { $("#bcErr").textContent = err.message; } }
   if (id === "payForm") {
     const body = {provider: document.querySelector('input[name="pv"]:checked')?.value || "none"};
     if ($("#pv-key").value.trim()) body.secretKey = $("#pv-key").value.trim();
@@ -1999,7 +2079,7 @@ document.addEventListener("click", async e => {
     if (m && availOf(m) > 0) { l.qty++; render(); } else toast("สต็อกไม่พอ"); return; }
   if (d.dec) { const l = S.cart.find(x => x.key === d.dec); if (l) { l.qty--; if (l.qty <= 0) S.cart = S.cart.filter(x => x !== l); } return render(); }
   if (d.otype) { S.otype = d.otype; return render(); }
-  if ("clear" in d) { S.cart = []; S.coupon = ""; S.manualDisc = 0; S.member = null; S.voucher = null; S.note = ""; return render(); }
+  if ("clear" in d) { S.cart = []; S.coupon = ""; S.manualDisc = 0; S.discountOk = null; S.member = null; S.voucher = null; S.note = ""; return render(); }
   if ("rewardpick" in d) { const cm = curMember(); if (cm) openRewardPicker(cm, "bill"); return; }
   if ("unvoucher" in d) { S.voucher = null; return render(); }
   if (d.memredeem) { const m = S.members.find(x => x.id === d.memredeem); if (m) openRewardPicker(m, "direct"); return; }
@@ -2009,7 +2089,7 @@ document.addEventListener("click", async e => {
   if ("closeticket" in d) { S.ticketOpen = false; return render(); }
   if ("pay" in d) return openPay();
   if ("coupon" in d) return inputBox("คูปองส่วนลด", "โค้ดคูปอง", S.coupon, v => { S.coupon = v.trim().toUpperCase(); });
-  if ("manual" in d) return inputBox("ส่วนลดพิเศษ", "ลดกี่บาท", S.manualDisc || "", v => { S.manualDisc = Math.max(0, Number(v) || 0); }, "number");
+  if ("manual" in d) return inputBox("ส่วนลดพิเศษ", "ลดกี่บาท", S.manualDisc || "", setManualDisc, "number");
   if ("note" in d) return inputBox("หมายเหตุออเดอร์", "เช่น หวานน้อย ไม่ใส่น้ำแข็ง แยกถุง", S.note, v => { S.note = v; }, "textarea");
   if ("pickmember" in d) return pickMember();
   if ("unmember" in d) { S.member = null; S.voucher = null; S.cart = S.cart.filter(l => !l.reward); return render(); }
@@ -2058,7 +2138,8 @@ document.addEventListener("submit", async e => {
     const pp = v("s-pp").replace(/\D/g, "");
     if (pp && !promptPayPayload(pp, 1)) { toast("หมายเลขพร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก หรือเลข 13/15 หลัก"); return; }
     const data = {name: v("s-name") || "ร้านของฉัน", tagline: v("s-tag"), branch: v("s-branch"), phone: v("s-phone"), address: v("s-addr"), taxId: v("s-tax"), vat: v("s-vat"), promptpay: pp, footer: v("s-foot"),
-      pointsPer: Math.max(1, +v("s-pper") || 25), birthdayMultiplier: Math.min(5, Math.max(1, +v("s-bmul") || 1)), dayStartHour: +v("s-dsh") || 0, lowStockAt: Math.max(0, +v("s-low") || 0), poundPrice: Math.max(1, +v("s-lb") || 250)};
+      pointsPer: Math.max(1, +v("s-pper") || 25), birthdayMultiplier: Math.min(5, Math.max(1, +v("s-bmul") || 1)), dayStartHour: +v("s-dsh") || 0, lowStockAt: Math.max(0, +v("s-low") || 0), poundPrice: Math.max(1, +v("s-lb") || 250),
+      discountLimitBaht: Math.max(0, +v("s-dlb") || 0), discountLimitPct: Math.min(100, Math.max(0, +v("s-dlp") || 0))};
     if (await store.call("PUT", "/api/config/shop", data)) { clearDraft(); toast("บันทึกข้อมูลร้านแล้ว"); } }
 });
 document.addEventListener("keydown", e => {

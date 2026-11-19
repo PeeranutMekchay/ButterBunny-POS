@@ -13,7 +13,10 @@ function startJobs(db, { backupDir, backupHour = 3 }) {
     try {
       const last = B.listBackups(backupDir)[0];
       const due = !last || now - last.createdAt > 24 * 3600e3 || (now.getHours() === backupHour && now - last.createdAt > 2 * 3600e3);
-      if (due) { const b = B.backupNow(db, backupDir); console.log(`สำรองข้อมูลแล้ว: ${b.name}`); }
+      if (due) {
+        const b = B.backupNow(db, backupDir); console.log(`สำรองข้อมูลแล้ว: ${b.name}`);
+        if (b.copyError) { console.error(b.copyError); const l = N.getLine(db); if (l.enabled && l.events.backupFail) N.send(db, `❗ ${b.copyError}`); }
+      }
     } catch (e) {
       console.error("สำรองข้อมูลไม่สำเร็จ:", e.message);
       const l = N.getLine(db); if (l.enabled && l.events.backupFail) N.send(db, `❗ สำรองข้อมูลไม่สำเร็จ: ${e.message}`);
