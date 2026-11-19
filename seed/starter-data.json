@@ -1,0 +1,728 @@
+{
+  "menu": {
+    "m-americano": {
+      "active": true,
+      "cat": "coffee",
+      "name": "อเมริกาโน่",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        }
+      ],
+      "order": 1,
+      "price": 60,
+      "sweet": false,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-americano.jpg"
+    },
+    "m-bagel": {
+      "active": true,
+      "cat": "bread",
+      "name": "เบเกิลงาครีมชีส",
+      "opts": [],
+      "order": 7,
+      "price": 85,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-bagel.jpg"
+    },
+    "m-basque": {
+      "active": true,
+      "cat": "cake",
+      "name": "ชีสเค้กหน้าไหม้",
+      "opts": [],
+      "order": 2,
+      "price": 125,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-basque.jpg"
+    },
+    "m-brownie": {
+      "active": true,
+      "cat": "cake",
+      "name": "บราวนี่ช็อกโกแลต",
+      "opts": [],
+      "order": 1,
+      "price": 59,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-brownie.jpg"
+    },
+    "m-cappuccino": {
+      "active": true,
+      "cat": "coffee",
+      "name": "คาปูชิโน่",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        }
+      ],
+      "order": 3,
+      "price": 70,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-cappuccino.jpg"
+    },
+    "m-caramel": {
+      "active": true,
+      "cat": "coffee",
+      "name": "คาราเมลมัคคิอาโต้",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        },
+        {
+          "add": 20,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 6,
+      "price": 85,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-caramel.jpg"
+    },
+    "m-chiffon": {
+      "active": true,
+      "cat": "cake",
+      "name": "ชิฟฟ่อนใบเตย",
+      "opts": [],
+      "order": 6,
+      "price": 65,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-chiffon.jpg"
+    },
+    "m-chococake": {
+      "active": true,
+      "cat": "cake",
+      "name": "เค้กช็อกโกแลตหน้านิ่ม",
+      "opts": [],
+      "order": 9,
+      "price": 95,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-chococake.jpg"
+    },
+    "m-cinnamon": {
+      "active": true,
+      "cat": "bread",
+      "name": "ซินนามอนโรล",
+      "opts": [],
+      "order": 4,
+      "price": 70,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-cinnamon.jpg"
+    },
+    "m-cocoa": {
+      "active": true,
+      "cat": "drink",
+      "name": "โกโก้",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        },
+        {
+          "add": 20,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 3,
+      "price": 65,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-cocoa.jpg"
+    },
+    "m-cookie": {
+      "active": true,
+      "cat": "cake",
+      "name": "คุกกี้ช็อกชิพ",
+      "opts": [],
+      "order": 8,
+      "price": 39,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-cookie.jpg"
+    },
+    "m-croissant": {
+      "active": true,
+      "cat": "bread",
+      "name": "ครัวซองต์เนยสด",
+      "opts": [],
+      "order": 1,
+      "price": 65,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-croissant.jpg"
+    },
+    "m-donut": {
+      "active": true,
+      "cat": "cake",
+      "name": "โดนัทสตรอว์เบอร์รี",
+      "opts": [],
+      "order": 10,
+      "price": 45,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-donut.jpg"
+    },
+    "m-eggtart": {
+      "active": true,
+      "cat": "cake",
+      "name": "ทาร์ตไข่",
+      "opts": [],
+      "order": 4,
+      "price": 45,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-eggtart.jpg"
+    },
+    "m-espresso": {
+      "active": true,
+      "cat": "coffee",
+      "name": "เอสเพรสโซ่",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ช็อตเดียว"
+        },
+        {
+          "add": 15,
+          "name": "ดับเบิลช็อต"
+        }
+      ],
+      "order": 5,
+      "price": 55,
+      "sweet": false,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-espresso.jpg"
+    },
+    "m-hamcheese": {
+      "active": true,
+      "cat": "other",
+      "name": "ครัวซองต์แฮมชีส",
+      "opts": [],
+      "order": 1,
+      "price": 95,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-hamcheese.jpg"
+    },
+    "m-latte": {
+      "active": true,
+      "cat": "coffee",
+      "name": "ลาเต้",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        },
+        {
+          "add": 20,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 2,
+      "price": 70,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-latte.jpg"
+    },
+    "m-lemontea": {
+      "active": true,
+      "cat": "drink",
+      "name": "ชามะนาว",
+      "opts": [
+        {
+          "add": 0,
+          "name": "เย็น"
+        },
+        {
+          "add": 10,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 8,
+      "price": 50,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-lemontea.jpg"
+    },
+    "m-macaron": {
+      "active": true,
+      "cat": "cake",
+      "name": "มาการอง (3 ชิ้น)",
+      "opts": [],
+      "order": 7,
+      "price": 120,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-macaron.jpg"
+    },
+    "m-matcha": {
+      "active": true,
+      "cat": "drink",
+      "name": "มัทฉะลาเต้",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        },
+        {
+          "add": 20,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 2,
+      "price": 85,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-matcha.jpg"
+    },
+    "m-mexicanbun": {
+      "active": true,
+      "cat": "bread",
+      "name": "เม็กซิกันบันเนยสด",
+      "opts": [],
+      "order": 5,
+      "price": 55,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-mexicanbun.jpg"
+    },
+    "m-mocha": {
+      "active": true,
+      "cat": "coffee",
+      "name": "มอคค่า",
+      "opts": [
+        {
+          "add": 0,
+          "name": "ร้อน"
+        },
+        {
+          "add": 10,
+          "name": "เย็น"
+        },
+        {
+          "add": 20,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 4,
+      "price": 80,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-mocha.jpg"
+    },
+    "m-orange": {
+      "active": true,
+      "cat": "drink",
+      "name": "น้ำส้มคั้นสด",
+      "opts": [],
+      "order": 4,
+      "price": 60,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-orange.jpg"
+    },
+    "m-painchoc": {
+      "active": true,
+      "cat": "bread",
+      "name": "เพนโอชอกโกแลต",
+      "opts": [],
+      "order": 2,
+      "price": 75,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-painchoc.jpg"
+    },
+    "m-pandantoast": {
+      "active": true,
+      "cat": "bread",
+      "name": "ขนมปังสังขยาใบเตย",
+      "opts": [],
+      "order": 6,
+      "price": 49,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-pandantoast.jpg"
+    },
+    "m-pinkmilk": {
+      "active": true,
+      "cat": "drink",
+      "name": "นมชมพู",
+      "opts": [
+        {
+          "add": 0,
+          "name": "เย็น"
+        },
+        {
+          "add": 10,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 5,
+      "price": 50,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-pinkmilk.jpg"
+    },
+    "m-strawshort": {
+      "active": true,
+      "cat": "cake",
+      "name": "สตรอว์เบอร์รีชอร์ตเค้ก",
+      "opts": [],
+      "order": 5,
+      "price": 135,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-strawshort.jpg"
+    },
+    "m-strawsmoothie": {
+      "active": true,
+      "cat": "drink",
+      "name": "สตรอว์เบอร์รีโยเกิร์ตปั่น",
+      "opts": [],
+      "order": 7,
+      "price": 79,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-strawsmoothie.jpg"
+    },
+    "m-thaitea": {
+      "active": true,
+      "cat": "drink",
+      "name": "ชาไทย",
+      "opts": [
+        {
+          "add": 0,
+          "name": "เย็น"
+        },
+        {
+          "add": 10,
+          "name": "ปั่น"
+        }
+      ],
+      "order": 1,
+      "price": 55,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-thaitea.jpg"
+    },
+    "m-wholewheat": {
+      "active": true,
+      "cat": "bread",
+      "name": "ขนมปังโฮลวีต",
+      "opts": [],
+      "order": 3,
+      "price": 89,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-wholewheat.jpg"
+    },
+    "m-yuzu": {
+      "active": true,
+      "cat": "cake",
+      "name": "เค้กส้มยูซุ",
+      "opts": [],
+      "order": 3,
+      "price": 115,
+      "sweet": false,
+      "trackStock": true,
+      "imgFile": "/assets/illustrations/m-yuzu.jpg"
+    },
+    "m-yuzusoda": {
+      "active": true,
+      "cat": "drink",
+      "name": "ยูซุโซดา",
+      "opts": [],
+      "order": 6,
+      "price": 65,
+      "sweet": true,
+      "trackStock": false,
+      "imgFile": "/assets/illustrations/m-yuzusoda.jpg"
+    }
+  },
+  "stock": {
+    "m-bagel": {
+      "qty": 8
+    },
+    "m-basque": {
+      "qty": 8
+    },
+    "m-brownie": {
+      "qty": 16
+    },
+    "m-chiffon": {
+      "qty": 10
+    },
+    "m-chococake": {
+      "qty": 8
+    },
+    "m-cinnamon": {
+      "qty": 4
+    },
+    "m-cookie": {
+      "qty": 25
+    },
+    "m-croissant": {
+      "qty": 23
+    },
+    "m-donut": {
+      "qty": 20
+    },
+    "m-eggtart": {
+      "qty": 30
+    },
+    "m-hamcheese": {
+      "qty": 8
+    },
+    "m-macaron": {
+      "qty": 12
+    },
+    "m-mexicanbun": {
+      "qty": 15
+    },
+    "m-orange": {
+      "qty": 11
+    },
+    "m-painchoc": {
+      "qty": 18
+    },
+    "m-pandantoast": {
+      "qty": 12
+    },
+    "m-strawshort": {
+      "qty": 6
+    },
+    "m-wholewheat": {
+      "qty": 10
+    },
+    "m-yuzu": {
+      "qty": 6
+    },
+    "rw-w-sticker": {
+      "qty": 100
+    },
+    "rw-w-tote": {
+      "qty": 20
+    },
+    "rw-w-tumbler": {
+      "qty": 10
+    }
+  },
+  "promos": {
+    "p-happyhour": {
+      "active": true,
+      "buy": 2,
+      "cat": "drink",
+      "code": null,
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "end": "16:00",
+      "from": null,
+      "get": 1,
+      "items": [],
+      "min": 0,
+      "name": "Happy Hour เครื่องดื่ม 20%",
+      "scope": "cat",
+      "start": "14:00",
+      "to": null,
+      "type": "percent",
+      "unit": "baht",
+      "value": 20
+    },
+    "p-min500": {
+      "active": true,
+      "buy": 2,
+      "cat": null,
+      "code": null,
+      "days": [],
+      "end": null,
+      "from": null,
+      "get": 1,
+      "items": [],
+      "min": 500,
+      "name": "ครบ 500 ลด 50",
+      "scope": "all",
+      "start": null,
+      "to": null,
+      "type": "minspend",
+      "unit": "baht",
+      "value": 50
+    },
+    "p-tart31": {
+      "active": true,
+      "buy": 3,
+      "cat": null,
+      "code": null,
+      "days": [],
+      "end": null,
+      "from": null,
+      "get": 1,
+      "items": [
+        "m-eggtart"
+      ],
+      "min": 0,
+      "name": "ทาร์ตไข่ ซื้อ 3 แถม 1",
+      "scope": "items",
+      "start": null,
+      "to": null,
+      "type": "bxgy",
+      "unit": "baht",
+      "value": 0
+    },
+    "p-welcome": {
+      "active": true,
+      "buy": 2,
+      "cat": null,
+      "code": "WELCOME10",
+      "days": [],
+      "end": null,
+      "from": null,
+      "get": 1,
+      "items": [],
+      "min": 0,
+      "name": "คูปองลูกค้าใหม่ 10%",
+      "scope": "all",
+      "start": null,
+      "to": null,
+      "type": "percent",
+      "unit": "baht",
+      "value": 10
+    }
+  },
+  "rewards": {
+    "w-cookie": {
+      "active": true,
+      "blurb": "กรอบนอก นุ่มใน",
+      "itemId": "m-cookie",
+      "kind": "item",
+      "limited": false,
+      "name": "คุกกี้ช็อกชิพฟรี",
+      "points": 40,
+      "value": 0
+    },
+    "w-croissant": {
+      "active": true,
+      "blurb": "เมนูขวัญใจของกระต่ายเนย",
+      "itemId": "m-croissant",
+      "kind": "item",
+      "limited": false,
+      "name": "ครัวซองต์เนยสดฟรี",
+      "points": 70,
+      "value": 0
+    },
+    "w-eggtart": {
+      "active": true,
+      "blurb": "อบใหม่ทุกเช้า",
+      "itemId": "m-eggtart",
+      "kind": "item",
+      "limited": false,
+      "name": "ทาร์ตไข่ฟรี",
+      "points": 50,
+      "value": 0
+    },
+    "w-latte": {
+      "active": true,
+      "blurb": "ร้อนหรือเย็นก็ได้",
+      "itemId": "m-latte",
+      "kind": "item",
+      "limited": false,
+      "name": "ลาเต้ฟรี 1 แก้ว",
+      "points": 80,
+      "value": 0
+    },
+    "w-off50": {
+      "active": true,
+      "blurb": "ใช้ได้กับทุกเมนูในบิล",
+      "itemId": null,
+      "kind": "discount",
+      "limited": false,
+      "name": "คูปองลด 50 บาท",
+      "points": 100,
+      "value": 50
+    },
+    "w-sticker": {
+      "active": true,
+      "blurb": "แผ่นละ 4 ลาย กันน้ำ",
+      "itemId": null,
+      "kind": "gift",
+      "limited": true,
+      "name": "สติกเกอร์กระต่ายเนย",
+      "points": 20,
+      "value": 0,
+      "imgFile": "/assets/illustrations/g-sticker.jpg"
+    },
+    "w-tote": {
+      "active": true,
+      "blurb": "ผ้าแคนวาสหนา ใส่ขนมได้เยอะ",
+      "itemId": null,
+      "kind": "gift",
+      "limited": true,
+      "name": "ถุงผ้ากระต่ายเนย",
+      "points": 250,
+      "value": 0,
+      "imgFile": "/assets/illustrations/g-tote.jpg"
+    },
+    "w-tumbler": {
+      "active": true,
+      "blurb": "เก็บความเย็นได้นาน ลายกระต่ายเนย",
+      "itemId": null,
+      "kind": "gift",
+      "limited": true,
+      "name": "แก้วเก็บความเย็น Butter Bunny",
+      "points": 400,
+      "value": 0,
+      "imgFile": "/assets/illustrations/g-tumbler.jpg"
+    }
+  },
+  "config": {
+    "shop": {
+      "address": "",
+      "branch": "",
+      "footer": "ขอบคุณที่แวะมาหาเจ้ากระต่ายเนยนะคะ แล้วมาอีกน้า",
+      "name": "Butter Bunny บัตเตอร์บันนี่",
+      "phone": "",
+      "pointsPer": 25,
+      "promptpay": "",
+      "tagline": "เบเกอรี่อบสดทุกเช้า & กาแฟหอมกรุ่น",
+      "taxId": "",
+      "vat": "incl"
+    }
+  }
+}

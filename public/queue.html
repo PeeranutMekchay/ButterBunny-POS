@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Butter Bunny · เรียกคิว</title>
+<link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+<link rel="stylesheet" href="/vendor/fonts/itim/400.css">
+<link rel="stylesheet" href="/vendor/fonts/mitr/400.css">
+<link rel="stylesheet" href="/vendor/fonts/mitr/500.css">
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("bb-theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
+<style>
+/* Customer-facing queue board: "ready" numbers are the hero, "preparing" sits quietly beside them */
+:root{
+  --bg:#FFFAFC; --surface:#FFFFFF; --soft:#FFF0F5; --line:#F7E1EA; --fg:#4A2F3A; --muted:#9A7D88;
+  --accent:#C8456F; --on-accent:#FFFFFF; --accent-soft:#FCE3EC; --brand-ink:#8E3B5E; --butter:#F7D774; --dot:rgb(232 120 160/.10);
+  --ff-brand:"Itim","Mitr",system-ui,sans-serif; --ff-num:"Mitr",system-ui,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#241912; --surface:#33241A; --soft:#402E21; --line:#55402D; --fg:#FBEEDC; --muted:#CDB394;
+  --accent:#F2C14E; --on-accent:#3A2510; --accent-soft:#4D3A20; --brand-ink:#FFD99A; --butter:#F2C14E; --dot:rgb(255 215 150/.05); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg) radial-gradient(var(--dot) 1.6px,transparent 1.9px) 0 0/24px 24px;color:var(--fg);font-family:var(--ff-num);overflow:hidden}
+.wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:2vh;padding:3vh max(3vw,env(safe-area-inset-right,0px)) 2vh max(3vw,env(safe-area-inset-left,0px))}
+header{display:flex;align-items:center;gap:1.6vw}
+header svg{width:9vh;height:9vh;flex:none}
+.brand{font-family:var(--ff-brand);font-size:5.4vh;line-height:1;color:var(--brand-ink)}
+.tag{color:var(--muted);font-size:2.2vh;margin-top:.6vh}
+.clock{margin-left:auto;text-align:right;font-size:5vh;color:var(--brand-ink);font-variant-numeric:tabular-nums;line-height:1}
+.clock small{display:block;font-size:2vh;color:var(--muted);margin-top:.6vh}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2.2fr);gap:2.4vw;min-height:0}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:3vh;padding:2.6vh 2vw;display:flex;flex-direction:column;min-height:0;box-shadow:0 8px 30px rgb(150 60 90/.08)}
+.col h2{font-family:var(--ff-brand);font-weight:400;font-size:3.6vh;margin:0 0 2vh;display:flex;align-items:center;gap:1vw;color:var(--brand-ink)}
+.col h2 i{width:1.6vh;height:1.6vh;border-radius:50%;background:var(--muted)}
+.ready h2 i{background:var(--accent);box-shadow:0 0 0 .6vh var(--accent-soft)}
+.list{display:flex;flex-wrap:wrap;gap:1.4vh;align-content:flex-start;overflow:hidden}
+.prep .n{font-size:4.4vh;padding:.8vh 1.6vw;border-radius:1.6vh;background:var(--soft);color:var(--fg);font-variant-numeric:tabular-nums}
+.ready .list{gap:2vh}
+.ready .n{font-size:10vh;line-height:1;padding:2.2vh 2.4vw;border-radius:2.6vh;background:var(--accent-soft);color:var(--brand-ink);font-weight:500;font-variant-numeric:tabular-nums;position:relative}
+.ready .n.new{background:var(--accent);color:var(--on-accent);animation:pop .7s ease-out, glow 1.6s ease-in-out 3}
+.n small{display:block;font-size:.26em;font-weight:400;opacity:.75;margin-top:.4em;text-align:center}
+.empty{color:var(--muted);font-size:2.6vh}
+footer{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:2vh}
+footer button{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:.8vh 1.6vw;cursor:pointer}
+.dot{display:inline-block;width:1.2vh;height:1.2vh;border-radius:50%;background:var(--accent);margin-right:.6vw;vertical-align:middle}
+.dot.off{background:var(--muted)}
+/* sound controls live in a small corner; the board itself is never covered */
+.corner{position:fixed;right:max(2vw,env(safe-area-inset-right,0px));bottom:calc(2vh + env(safe-area-inset-bottom,0px));z-index:5;display:flex;flex-direction:column;align-items:flex-end;gap:1vh}
+.chips{display:flex;gap:.8vw}
+.chip{font:inherit;font-size:max(13px,1.9vh);display:inline-flex;align-items:center;gap:.5em;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:.9vh 1.4vw;cursor:pointer;box-shadow:0 6px 18px rgb(150 60 90/.12)}
+.chip svg{width:1.2em;height:1.2em}
+.chip.need{background:var(--accent);color:var(--on-accent);border-color:var(--accent);animation:nudge 2.4s ease-in-out infinite}
+.vpanel{width:min(400px,92vw);background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:0 18px 50px rgb(150 60 90/.18);display:grid;gap:12px;font-size:15px}
+.vpanel h3{margin:0;font-family:var(--ff-brand);font-weight:400;font-size:20px;color:var(--brand-ink)}
+.vpanel label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.vpanel select,.vpanel input[type=range]{width:100%;font:inherit;color:var(--fg);accent-color:var(--accent)}
+.vpanel select{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 10px}
+.vpanel .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.vpanel .row button{font:inherit;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:8px 12px;cursor:pointer}
+.vpanel .row button.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.vpanel .row button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.vpanel .hint{font-size:12px;color:var(--muted);margin:0;line-height:1.5}
+@keyframes nudge{0%,100%{transform:none}50%{transform:translateY(-3px)}}
+/* the mascot: a big bunny in its butter moon, idling until an order is ready */
+.prep{position:relative}
+.mascot{margin-top:auto;position:relative;display:grid;justify-items:center;padding-top:2vh;pointer-events:none}
+.mascot svg{height:min(38vh,30vw);width:auto;overflow:visible;filter:drop-shadow(0 1.4vh 1.6vh rgb(150 60 90/.18))}
+.mascot .bob{animation:bob 3.4s ease-in-out infinite;transform-box:view-box;transform-origin:32px 64px}
+.mascot .moon{animation:rock 3.4s ease-in-out infinite;transform-box:view-box;transform-origin:32px 40px}
+.mascot .ear{transform-box:fill-box;transform-origin:50% 100%;animation:ear 4.6s ease-in-out infinite}
+.mascot .ear.r{animation-delay:-.5s}
+.mascot .eyes{transform-box:fill-box;transform-origin:center;animation:blink 5.2s infinite}
+.mascot .arm{transform-box:fill-box;transform-origin:20% 90%;opacity:0}
+.mascot .tw{animation:tw 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.mascot .tw:nth-of-type(2){animation-delay:-.9s}.mascot .tw:nth-of-type(3){animation-delay:-1.7s}
+.mascot.cheer .bob{animation:hop .5s ease-in-out 6}
+.mascot.cheer .arm{opacity:1;animation:wave .45s ease-in-out 7}
+.mascot.cheer .mouth{d:path("M29.6 36.3q2.4 3.2 4.8 0Z");fill:#E5638F}
+.bubble{position:absolute;top:0;left:50%;transform:translate(-50%,-30%) scale(.6);opacity:0;background:var(--surface);color:var(--brand-ink);border:2px solid var(--accent-soft);border-radius:2.4vh;padding:1.2vh 1.8vw;font-family:var(--ff-brand);font-size:max(16px,2.8vh);white-space:nowrap;box-shadow:0 1vh 2.4vh rgb(150 60 90/.15);transition:.35s cubic-bezier(.2,1.5,.4,1)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-1.2vh;width:2vh;height:2vh;background:var(--surface);border-right:2px solid var(--accent-soft);border-bottom:2px solid var(--accent-soft);transform:translateX(-50%) rotate(45deg)}
+.mascot.cheer .bubble,.mascot.talk .bubble{opacity:1;transform:translate(-50%,-60%) scale(1)}
+@keyframes bob{50%{transform:translateY(-2.5px)}}
+@keyframes rock{50%{transform:rotate(-3deg)}}
+@keyframes ear{0%,78%,100%{transform:rotate(0)}83%{transform:rotate(-14deg)}88%{transform:rotate(9deg)}93%{transform:rotate(-4deg)}}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}95.5%{transform:scaleY(.1)}}
+@keyframes hop{50%{transform:translateY(-9px)}}
+@keyframes wave{50%{transform:rotate(-28deg)}}
+@keyframes tw{50%{transform:scale(.4);opacity:.3}}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes glow{50%{box-shadow:0 0 0 1.4vh var(--accent-soft)}}
+@media (prefers-reduced-motion:reduce){.ready .n.new,.chip.need,.mascot *{animation:none!important}}
+@media (max-width:700px),(orientation:portrait){
+  body{overflow:auto} main{grid-template-columns:1fr} .ready{order:-1}
+  .ready .n{font-size:7vh} .brand{font-size:4vh} .clock{font-size:3.6vh}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span id="logo"></span>
+    <div><div class="brand" id="shop">Butter Bunny</div><div class="tag">ขอบคุณที่รอนะคะ เรียกเลขคิวแล้วรับได้ที่เคาน์เตอร์</div></div>
+    <div class="clock" id="clock"></div>
+  </header>
+  <main>
+    <section class="col prep"><h2><i></i>กำลังเตรียม</h2><div class="list" id="prep"></div>
+      <div class="mascot" id="mascot" aria-hidden="true"><div class="bubble" id="bubble">กำลังอบให้นะ!</div>
+        <svg viewBox="0 0 64 66">
+          <path class="tw" d="M8 9l.9 2.6 2.6.9-2.6.9-.9 2.6-.9-2.6-2.6-.9 2.6-.9z" fill="#F4A3BE"/>
+          <path class="tw" d="M55 6l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" fill="#F2C94C"/>
+          <path class="tw" d="M57 24l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" fill="#F4A3BE"/>
+          <g class="moon">
+            <g class="bob">
+              <g class="ear l"><ellipse cx="27.2" cy="19" rx="3.7" ry="9.5" transform="rotate(-12 27.2 19)" fill="#FFFDFB" stroke="#B98B73" stroke-width="1.6"/><ellipse cx="27.2" cy="20" rx="1.6" ry="6.3" transform="rotate(-12 27.2 20)" fill="#F4A3BE"/></g>
+              <g class="ear r"><ellipse cx="36.8" cy="19" rx="3.7" ry="9.5" transform="rotate(12 36.8 19)" fill="#FFFDFB" stroke="#B98B73" stroke-width="1.6"/><ellipse cx="36.8" cy="20" rx="1.6" ry="6.3" transform="rotate(12 36.8 20)" fill="#F4A3BE"/></g>
+              <ellipse cx="32" cy="45" rx="11" ry="9" fill="#FFFDFB" stroke="#B98B73" stroke-width="1.6"/>
+              <g class="arm"><ellipse cx="44.5" cy="38" rx="2.6" ry="4.6" transform="rotate(30 44.5 38)" fill="#FFFDFB" stroke="#B98B73" stroke-width="1.4"/></g>
+              <circle cx="32" cy="33.5" r="9" fill="#FFFDFB" stroke="#B98B73" stroke-width="1.6"/>
+              <g class="eyes"><circle cx="28.6" cy="33.4" r="1.3" fill="#4A2F3A"/><circle cx="35.4" cy="33.4" r="1.3" fill="#4A2F3A"/><circle cx="29" cy="33" r=".4" fill="#fff"/><circle cx="35.8" cy="33" r=".4" fill="#fff"/></g>
+              <ellipse cx="32" cy="35.4" rx=".95" ry=".7" fill="#E5638F"/>
+              <path class="mouth" d="M30.5 36.7q1.5 1.3 3 0" fill="none" stroke="#4A2F3A" stroke-width="1.1" stroke-linecap="round"/>
+              <circle cx="25.9" cy="36.6" r="1.9" fill="#F4A3BE" opacity=".75"/><circle cx="38.1" cy="36.6" r="1.9" fill="#F4A3BE" opacity=".75"/>
+            </g>
+            <path d="M6 34A26 26 0 0 0 58 34A27.8 27.8 0 0 1 6 34Z" fill="#F7D774" stroke="#D9A23A" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M10.5 41.5A22.5 22.5 0 0 0 27 56" fill="none" stroke="#FFF3BF" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M39.5 58.6c.4 1.8.2 3.4-1 3.8-1.3.3-1.9-1.2-1.4-3.4" fill="#F7D774" stroke="#D9A23A" stroke-width="1.2" stroke-linejoin="round"/>
+            <ellipse cx="46" cy="52.5" rx="2.6" ry="1.4" transform="rotate(-28 46 52.5)" fill="#FFE58A"/>
+            <g fill="#FFFDFB" stroke="#B98B73" stroke-width="1.4"><ellipse cx="26.6" cy="51.8" rx="2.8" ry="1.9"/><ellipse cx="37.4" cy="51.8" rx="2.8" ry="1.9"/></g>
+          </g>
+        </svg></div></section>
+    <section class="col ready"><h2><i></i>พร้อมรับแล้ว</h2><div class="list" id="ready"></div></section>
+  </main>
+  <footer><span><span class="dot" id="live"></span><span id="liveText">กำลังเชื่อมต่อ…</span></span><span></span></footer>
+</div>
+<div class="corner">
+  <div class="vpanel" id="vpanel" hidden>
+    <h3>เสียงเรียกคิว</h3>
+    <label>เสียงพูด<select id="voiceSel"></select></label>
+    <label>ความเร็ว <span id="rateVal"></span><input type="range" id="rate" min="0.7" max="1.3" step="0.05"></label>
+    <div class="row"><span style="font-size:13px;color:var(--muted)">พูดซ้ำ</span><button data-rep="1">1 รอบ</button><button data-rep="2">2 รอบ</button></div>
+    <p class="hint" id="voiceHint"></p>
+    <div class="row"><button class="primary" id="testVoice">ทดสอบเสียง</button><button id="muteBtn">ปิดเสียง</button><button id="closePanel">ปิด</button></div>
+  </div>
+  <div class="chips"><button class="chip need" id="soundChip"></button><button class="chip" id="fs">เต็มจอ</button></div>
+</div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const pad = n => "#" + String(n).padStart(3, "0");
+fetch("/assets/logo.svg").then(r => r.text()).then(t => $("#logo").innerHTML = t).catch(() => {});
+
+let audio = null, seen = null, newest = new Set(), today = "";
+const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg>';
+const SET = (() => { try { return {rate: 1, repeat: 2, voice: "", muted: false, ...JSON.parse(localStorage.getItem("bb-queue-voice") || "{}")}; } catch { return {rate: 1, repeat: 2, voice: "", muted: false}; } })();
+const saveSet = () => { try { localStorage.setItem("bb-queue-voice", JSON.stringify(SET)); } catch {} };
+const hasTTS = "speechSynthesis" in window;
+// natural-sounding Thai voices first: Edge "Premwadee/Niwat (Natural)", Apple "Narisa/Kanya", then Google, then any Thai voice
+const RANK = [/premwadee/i, /narisa/i, /natural/i, /kanya/i, /online/i, /google/i, /achara/i, /pattara/i];
+const thVoices = () => hasTTS ? speechSynthesis.getVoices().filter(v => (v.lang || "").toLowerCase().replace("_", "-").startsWith("th")) : [];
+const score = v => { const i = RANK.findIndex(r => r.test(v.name)); return i < 0 ? 99 : i; };
+const pickVoice = () => { const vs = thVoices(); return vs.find(v => v.name === SET.voice) || vs.sort((a, b) => score(a) - score(b))[0] || null; };
+const DIG = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
+const spellQ = n => String(n).padStart(3, "0").split("").map(d => DIG[d]).join(" ");
+const phrase = n => `ออเดอร์ที่ ${spellQ(n)} ทำเสร็จแล้ว เชิญรับได้เลยค่ะ`;
+
+function chime(){
+  if (!audio || SET.muted) return;
+  const t = audio.currentTime;
+  [[880, 0], [1320, .18]].forEach(([f, d]) => {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = "sine"; o.frequency.value = f; o.connect(g); g.connect(audio.destination);
+    g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(.25, t + d + .02); g.gain.exponentialRampToValueAtTime(.001, t + d + .9);
+    o.start(t + d); o.stop(t + d + 1);
+  });
+}
+function speak(text){
+  const v = pickVoice(); if (!v) return;
+  const u = new SpeechSynthesisUtterance(text); u.voice = v; u.lang = v.lang; u.rate = SET.rate; u.pitch = 1.05;
+  speechSynthesis.speak(u);
+}
+function announce(nums){
+  if (!audio || SET.muted || !hasTTS || !pickVoice()) return;
+  setTimeout(() => { for (let r = 0; r < SET.repeat; r++) nums.forEach(n => speak(phrase(n))); }, 900);
+}
+function paintChip(){
+  const c = $("#soundChip");
+  if (!audio) { c.className = "chip need"; c.innerHTML = SPK + "แตะเพื่อเปิดเสียงเรียกคิว"; return; }
+  c.className = "chip"; c.innerHTML = SPK + (SET.muted ? "เสียงปิดอยู่" : "เสียงเรียกคิว");
+}
+function fillPanel(){
+  const vs = thVoices(), cur = pickVoice();
+  $("#voiceSel").innerHTML = vs.length ? vs.sort((a, b) => score(a) - score(b)).map(v => `<option value="${v.name.replace(/"/g, "&quot;")}" ${cur && v.name === cur.name ? "selected" : ""}>${v.name}</option>`).join("") : `<option value="">ไม่มีเสียงภาษาไทยในเครื่องนี้</option>`;
+  $("#voiceSel").disabled = !vs.length;
+  $("#rate").value = SET.rate; $("#rateVal").textContent = "x" + Number(SET.rate).toFixed(2);
+  document.querySelectorAll("[data-rep]").forEach(b => b.setAttribute("aria-pressed", +b.dataset.rep === SET.repeat));
+  $("#muteBtn").textContent = SET.muted ? "เปิดเสียง" : "ปิดเสียง";
+  $("#voiceHint").textContent = !hasTTS ? "เบราว์เซอร์นี้พูดไม่ได้ จะมีแค่เสียงกริ๊ง"
+    : !vs.length ? "เครื่องนี้ยังไม่มีเสียงภาษาไทย จะมีแค่เสียงกริ๊ง บน Windows แนะนำให้เปิดหน้านี้ด้วย Microsoft Edge (มีเสียง Premwadee แบบธรรมชาติ) บน iPad/Mac เลือกเสียง Narisa หรือ Kanya ได้"
+    : /premwadee|narisa|natural/i.test(cur?.name || "") ? "ใช้เสียงผู้หญิงภาษาไทยแบบธรรมชาติอยู่"
+    : "ถ้าอยากได้เสียงที่เป็นธรรมชาติกว่านี้ บน Windows ให้เปิดหน้านี้ด้วย Microsoft Edge แล้วเลือก Premwadee (Natural)";
+}
+function enableSound(){
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}
+  SET.muted = false; saveSet(); chime(); paintChip();
+}
+$("#soundChip").onclick = () => { if (!audio) { enableSound(); return; } const p = $("#vpanel"); p.hidden = !p.hidden; if (!p.hidden) fillPanel(); };
+$("#closePanel").onclick = () => { $("#vpanel").hidden = true; };
+$("#voiceSel").onchange = e => { SET.voice = e.target.value; saveSet(); fillPanel(); };
+$("#rate").oninput = e => { SET.rate = +e.target.value; saveSet(); $("#rateVal").textContent = "x" + SET.rate.toFixed(2); };
+document.querySelectorAll("[data-rep]").forEach(b => b.onclick = () => { SET.repeat = +b.dataset.rep; saveSet(); fillPanel(); });
+$("#muteBtn").onclick = () => { SET.muted = !SET.muted; saveSet(); if (hasTTS) speechSynthesis.cancel(); fillPanel(); paintChip(); };
+$("#testVoice").onclick = () => { if (!audio) enableSound(); if (SET.muted) { SET.muted = false; saveSet(); paintChip(); fillPanel(); } chime(); if (hasTTS && pickVoice()) { speechSynthesis.cancel(); setTimeout(() => speak(phrase(1)), 700); } };
+if (hasTTS) speechSynthesis.onvoiceschanged = () => { if (!$("#vpanel").hidden) fillPanel(); };
+$("#fs").onclick = () => document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.().catch(() => {});
+paintChip();
+
+let cheerT;
+function cheer(nums){
+  const m = $("#mascot"); clearTimeout(cheerT);
+  $("#bubble").textContent = `เย้! คิว ${nums.map(pad).join(", ")} พร้อมแล้ว`;
+  m.classList.remove("cheer", "talk"); void m.offsetWidth; m.classList.add("cheer");
+  cheerT = setTimeout(() => m.classList.remove("cheer"), 4200);
+}
+const IDLE = ["กำลังอบให้นะ!", "ขอบคุณที่รอนะคะ", "ขนมอบใหม่ทุกเช้าเลย", "หอมเนยมาก ๆ เลย"];
+setInterval(() => {
+  const m = $("#mascot"); if (m.classList.contains("cheer") || document.hidden) return;
+  $("#bubble").textContent = IDLE[Math.floor(Math.random() * IDLE.length)];
+  m.classList.add("talk"); setTimeout(() => m.classList.remove("talk"), 3500);
+}, 20000);
+const label = q => q.day !== today ? `<small>จากเมื่อวาน</small>` : (q.type === "take" ? `<small>กลับบ้าน</small>` : "");
+function paint(d){
+  today = d.today;
+  $("#shop").textContent = (d.shop.name || "Butter Bunny").replace(/\s+[฀-๿].*$/, "");
+  const key = q => q.day + "#" + q.queue;
+  const readyKeys = d.ready.map(key);
+  if (seen) {
+    const fresh = d.ready.filter(q => !seen.has(key(q)));
+    if (fresh.length) { fresh.forEach(q => newest.add(key(q))); chime(); announce(fresh.map(q => q.queue)); cheer(fresh.map(q => q.queue)); setTimeout(() => { fresh.forEach(q => newest.delete(key(q))); }, 20000); }
+  }
+  seen = new Set(readyKeys);
+  $("#prep").innerHTML = d.preparing.length ? d.preparing.map(q => `<span class="n">${pad(q.queue)}</span>`).join("") : `<span class="empty">ยังไม่มีคิวที่กำลังทำ</span>`;
+  $("#ready").innerHTML = d.ready.length ? d.ready.map(q => `<span class="n ${newest.has(key(q)) ? "new" : ""}">${pad(q.queue)}${label(q)}</span>`).join("") : `<span class="empty">รอสักครู่นะคะ</span>`;
+}
+let t;
+const load = () => fetch("/api/queue").then(r => r.json()).then(paint).catch(() => {});
+const soon = () => { clearTimeout(t); t = setTimeout(load, 120); };
+function connect(){
+  const es = new EventSource("/api/events");
+  es.onmessage = e => { try { if (JSON.parse(e.data).topics.some(x => x === "orders" || x === "hello")) soon(); } catch {} };
+  es.onopen = () => { $("#live").className = "dot"; $("#liveText").textContent = "อัปเดตอัตโนมัติ"; };
+  es.onerror = () => { $("#live").className = "dot off"; $("#liveText").textContent = "ขาดการเชื่อมต่อ กำลังลองใหม่…"; };
+}
+function tick(){
+  const n = new Date();
+  $("#clock").innerHTML = n.toLocaleTimeString("th-TH", {hour: "2-digit", minute: "2-digit"}) + `<small>${n.toLocaleDateString("th-TH", {weekday: "long", day: "numeric", month: "long"})}</small>`;
+}
+tick(); setInterval(tick, 15000); setInterval(load, 30000);
+load(); connect();
+})();
+</script>
+</body>
+</html>
