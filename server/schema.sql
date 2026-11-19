@@ -279,3 +279,45 @@ CREATE TABLE IF NOT EXISTS approvals (
   used_at      INTEGER,
   order_id     TEXT
 );
+
+-- Money given back for part (or all) of a bill; items JSON [{line, qty}] refers to order_items.line.
+CREATE TABLE IF NOT EXISTS refunds (
+  id          TEXT PRIMARY KEY,
+  order_id    TEXT NOT NULL REFERENCES orders(id),
+  created_at  INTEGER NOT NULL,
+  day         TEXT NOT NULL,
+  shift_id    TEXT,
+  amount      REAL NOT NULL,
+  pay         TEXT NOT NULL CHECK (pay IN ('cash', 'qr', 'card')),
+  items       TEXT NOT NULL DEFAULT '[]',
+  reason      TEXT NOT NULL DEFAULT '',
+  restocked   INTEGER NOT NULL DEFAULT 0,
+  points_back INTEGER NOT NULL DEFAULT 0,
+  staff_name  TEXT
+);
+CREATE INDEX IF NOT EXISTS refunds_order ON refunds(order_id);
+CREATE INDEX IF NOT EXISTS refunds_shift ON refunds(shift_id);
+
+-- Full tax invoices. Numbers run per Buddhist year; a cancelled one keeps its number.
+CREATE TABLE IF NOT EXISTS tax_invoices (
+  id            TEXT PRIMARY KEY,
+  no            TEXT NOT NULL UNIQUE,
+  year          INTEGER NOT NULL,
+  seq           INTEGER NOT NULL,
+  order_id      TEXT NOT NULL REFERENCES orders(id),
+  created_at    INTEGER NOT NULL,
+  staff_name    TEXT,
+  buyer_name    TEXT NOT NULL,
+  buyer_tax_id  TEXT NOT NULL,
+  buyer_branch  TEXT NOT NULL,
+  buyer_address TEXT NOT NULL,
+  seller        TEXT NOT NULL,   -- JSON snapshot of the shop at issue time
+  items         TEXT NOT NULL,   -- JSON [{name, qty, unit, amount}]
+  total         REAL NOT NULL,
+  vat           REAL NOT NULL,
+  cancelled_at  INTEGER,
+  cancelled_by  TEXT,
+  cancel_reason TEXT,
+  UNIQUE (year, seq)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS tax_invoice_active ON tax_invoices(order_id) WHERE cancelled_at IS NULL;

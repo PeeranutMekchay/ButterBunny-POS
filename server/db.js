@@ -18,12 +18,17 @@ const COLUMNS = [
   ["members", "birthday", "TEXT"],   // "MM-DD"
   ["orders", "shift_id", "TEXT"],
   ["orders", "manual_by", "TEXT"],   // who approved the special discount
+  ["orders", "payments", "TEXT"],    // JSON [{pay, amount, ref}] — more than one when the bill is split
+  ["orders", "refunded", "REAL NOT NULL DEFAULT 0"],
+  ["orders", "receipt_token", "TEXT"], // link for the customer's digital receipt
 ];
 function migrate(db) {
   for (const [table, col, type] of COLUMNS) {
     const have = db.prepare(`PRAGMA table_info(${table})`).all().map(r => r.name);
     if (!have.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
   }
+  db.exec("UPDATE orders SET receipt_token = lower(hex(randomblob(12))) WHERE receipt_token IS NULL");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS orders_receipt ON orders(receipt_token)");
 }
 
 // Runs fn inside one write transaction; rolls back on any error.

@@ -45,13 +45,18 @@ const memberOut = r => ({ id: r.phone, name: r.name, birthday: r.birthday || nul
 const staffOut = r => ({ id: r.id, name: r.name, role: r.role, active: !!r.active });
 const redeemOut = r => ({ id: r.id, day: r.day, createdAt: r.created_at, memberId: r.member_phone, memberName: r.member_name, rewardId: r.reward_id, rewardName: r.reward_name,
   kind: r.kind, qty: r.qty, points: r.points, staffName: r.staff_name, via: r.via, orderId: r.order_id, voided: !!r.voided, voidAt: r.void_at, voidBy: r.void_by, restocked: !!r.restocked });
-function orderOut(r, items) {
+const refundOut = f => ({ id: f.id, createdAt: f.created_at, day: f.day, amount: f.amount, pay: f.pay, items: json(f.items, []), reason: f.reason,
+  restocked: !!f.restocked, pointsBack: f.points_back, staffName: f.staff_name, shiftId: f.shift_id });
+const invoiceBrief = v => v ? { id: v.id, no: v.no, createdAt: v.created_at, buyerName: v.buyer_name } : null;
+function orderOut(r, items, refunds = [], invoice = null) {
   return { id: r.id, day: r.day, queue: r.queue, createdAt: r.created_at, type: r.type, status: r.status, pay: r.pay, ref: r.ref,
     items: items.map(i => ({ id: i.menu_id, name: i.name, cat: i.cat, unit: i.unit, qty: i.qty, opt: i.opt, sweet: i.sweet, reward: i.reward_id, pts: i.pts })),
     subtotal: r.subtotal, promos: json(r.promos, []), promoTotal: r.promo_total, manual: r.manual, pointsUsed: r.points_used, pointsDisc: r.points_disc,
     voucherName: r.voucher_name, total: r.total, vat: r.vat, tendered: r.tendered, change: r.change, note: r.note,
     memberId: r.member_phone, memberName: r.member_name, pointsEarned: r.points_earned, staffId: r.staff_id, staffName: r.staff_name,
-    readyAt: r.ready_at, doneAt: r.done_at, voidReason: r.void_reason, voidBy: r.void_by, voidAt: r.void_at, shiftId: r.shift_id, manualBy: r.manual_by };
+    readyAt: r.ready_at, doneAt: r.done_at, voidReason: r.void_reason, voidBy: r.void_by, voidAt: r.void_at, shiftId: r.shift_id, manualBy: r.manual_by,
+    payments: json(r.payments, null) || [{ pay: r.pay, amount: r.total, ref: r.ref }], refunded: r.refunded || 0, refunds: refunds.map(refundOut),
+    invoice: invoiceBrief(invoice), receiptToken: r.receipt_token };
 }
 
 /* ---------- reads ---------- */
@@ -75,11 +80,15 @@ function listOrders(db, from, to) {
   if (!rows.length) return [];
   const items = db.prepare("SELECT oi.* FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.day BETWEEN ? AND ? ORDER BY oi.order_id, oi.line").all(from, to);
   const by = {}; for (const i of items) (by[i.order_id] ||= []).push(i);
-  return rows.map(r => orderOut(r, by[r.id] || []));
+  const rf = {}; for (const f of db.prepare("SELECT f.* FROM refunds f JOIN orders o ON o.id = f.order_id WHERE o.day BETWEEN ? AND ? ORDER BY f.created_at").all(from, to)) (rf[f.order_id] ||= []).push(f);
+  const iv = {}; for (const v of db.prepare("SELECT v.* FROM tax_invoices v JOIN orders o ON o.id = v.order_id WHERE o.day BETWEEN ? AND ? AND v.cancelled_at IS NULL").all(from, to)) iv[v.order_id] = v;
+  return rows.map(r => orderOut(r, by[r.id] || [], rf[r.id] || [], iv[r.id] || null));
 }
 function getOrder(db, oid) {
   const r = db.prepare("SELECT * FROM orders WHERE id = ?").get(oid);
-  return r ? orderOut(r, db.prepare("SELECT * FROM order_items WHERE order_id = ? ORDER BY line").all(oid)) : null;
+  return r ? orderOut(r, db.prepare("SELECT * FROM order_items WHERE order_id = ? ORDER BY line").all(oid),
+    db.prepare("SELECT * FROM refunds WHERE order_id = ? ORDER BY created_at").all(oid),
+    db.prepare("SELECT * FROM tax_invoices WHERE order_id = ? AND cancelled_at IS NULL").get(oid) || null) : null;
 }
 const listRedeems = (db, from, to) => db.prepare("SELECT * FROM redeems WHERE day BETWEEN ? AND ? ORDER BY created_at").all(from, to).map(redeemOut);
 
@@ -193,7 +202,7 @@ function deleteMember(db, phone) {
   if (!r.changes) throw new HttpError(404, "ไม่พบสมาชิกนี้");
 }
 
-const SHOP_LIMITS = { name: 50, tagline: 60, branch: 40, address: 120, phone: 20, taxId: 13, footer: 80 };
+const SHOP_LIMITS = { name: 50, tagline: 60, branch: 40, address: 200, phone: 20, taxId: 13, footer: 80, taxBranch: 40 };
 function saveShop(db, d) {
   const out = { ...getShop(db) };
   for (const [k, max] of Object.entries(SHOP_LIMITS)) if (d[k] !== undefined) out[k] = str(d[k], max, "ข้อมูลร้าน");
@@ -202,6 +211,11 @@ function saveShop(db, d) {
     const pp = String(d.promptpay || "").replace(/\D/g, "");
     if (pp && !(pp.length === 10 && pp[0] === "0") && pp.length !== 13 && pp.length !== 15) throw bad("หมายเลขพร้อมเพย์ต้องเป็นเบอร์มือถือ 10 หลัก หรือเลข 13/15 หลัก");
     out.promptpay = pp;
+  }
+  if (d.receiptUrl !== undefined) {
+    const u = String(d.receiptUrl || "").trim().replace(/\/+$/, "");
+    if (u && !/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(u)) throw bad("ที่อยู่เว็บสำหรับใบเสร็จต้องขึ้นต้นด้วย http:// หรือ https://");
+    out.receiptUrl = u.slice(0, 200);
   }
   if (d.vat !== undefined) out.vat = d.vat === "incl" ? "incl" : "none";
   if (d.pointsPer !== undefined) out.pointsPer = num(d.pointsPer, "อัตราแต้ม", {min: 1, max: 10000, int: true});
@@ -217,7 +231,7 @@ function saveShop(db, d) {
 
 module.exports = {
   HttpError, bad, CATS, SWEET, PHONE_RE, DAY_RE, str, num, id, bday, shiftDays,
-  menuOut, rewardOut, memberOut, staffOut, orderOut, redeemOut,
+  menuOut, rewardOut, memberOut, staffOut, orderOut, redeemOut, refundOut,
   getShop, listMenu, getMenu, listStock, stockQty, listPromos, listRewards, getReward, listMembers, getMember, listStaff,
   listOrders, getOrder, listRedeems,
   saveMenu, deleteMenu, setStock, addStock, savePromo, setPromoActive, saveReward, deleteReward,

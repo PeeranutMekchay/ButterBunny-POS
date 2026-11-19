@@ -23,10 +23,14 @@ function requireShift(db) {
 
 // Everything the drawer should hold for one shift, computed from the records.
 function shiftSummary(db, s) {
-  const orders = db.prepare("SELECT pay, status, total FROM orders WHERE shift_id = ?").all(s.id);
+  const orders = db.prepare("SELECT pay, payments, status, total FROM orders WHERE shift_id = ?").all(s.id);
   const ok = orders.filter(o => o.status !== "void"), voids = orders.filter(o => o.status === "void");
   const byPay = { cash: 0, qr: 0, card: 0 };
-  for (const o of ok) byPay[o.pay] = r2(byPay[o.pay] + o.total);
+  for (const o of ok) for (const p of json(o.payments, null) || [{ pay: o.pay, amount: o.total }]) byPay[p.pay] = r2(byPay[p.pay] + p.amount);
+  // money given back during this shift (the bill itself may be from an earlier shift)
+  const refunds = { cash: 0, qr: 0, card: 0, total: 0, count: 0 };
+  for (const f of db.prepare("SELECT pay, amount FROM refunds WHERE shift_id = ?").all(s.id)) { refunds[f.pay] = r2(refunds[f.pay] + f.amount); refunds.total = r2(refunds.total + f.amount); refunds.count++; }
+  for (const k of PAYS) byPay[k] = r2(byPay[k] - refunds[k]);
   const pre = { cash: 0, qr: 0, card: 0 };
   for (const p of db.prepare("SELECT pay, amount FROM preorder_payments WHERE shift_id = ?").all(s.id)) pre[p.pay] = r2(pre[p.pay] + p.amount);
   const moves = db.prepare("SELECT * FROM cash_moves WHERE shift_id = ? ORDER BY created_at").all(s.id)
@@ -34,7 +38,7 @@ function shiftSummary(db, s) {
   const cashIn = r2(moves.filter(m => m.kind === "in").reduce((a, m) => a + m.amount, 0));
   const cashOut = r2(moves.filter(m => m.kind === "out").reduce((a, m) => a + m.amount, 0));
   const expectedCash = r2(s.opening_cash + byPay.cash + pre.cash + cashIn - cashOut);
-  return { bills: ok.length, sales: r2(ok.reduce((a, o) => a + o.total, 0)), byPay, voids: voids.length, voidTotal: r2(voids.reduce((a, o) => a + o.total, 0)),
+  return { bills: ok.length, sales: r2(ok.reduce((a, o) => a + o.total, 0) - refunds.total), byPay, refunds, voids: voids.length, voidTotal: r2(voids.reduce((a, o) => a + o.total, 0)),
     preorder: pre, cashIn, cashOut, moves, expectedCash };
 }
 function shiftOut(db, s) {
@@ -232,14 +236,14 @@ function bakePlan(db) {
 
 /* =================== owner dashboard =================== */
 function daySales(db, day) {
-  const r = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total),0) s FROM orders WHERE day = ? AND status != 'void'").get(day);
+  const r = db.prepare("SELECT COUNT(*) n, COALESCE(SUM(total - refunded),0) s FROM orders WHERE day = ? AND status != 'void'").get(day);
   const items = db.prepare("SELECT COALESCE(SUM(oi.qty),0) q FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.day = ? AND o.status != 'void'").get(day).q;
   const pre = db.prepare("SELECT COALESCE(SUM(amount),0) s FROM preorder_payments WHERE day = ?").get(day).s;
   return { day, bills: r.n, sales: r2(r.s), avg: r.n ? r2(r.s / r.n) : 0, items, preorderIncome: r2(pre) };
 }
 function hourly(db, day) {
   const out = Array(24).fill(0);
-  for (const o of db.prepare("SELECT created_at, total FROM orders WHERE day = ? AND status != 'void'").all(day)) out[new Date(o.created_at).getHours()] += o.total;
+  for (const o of db.prepare("SELECT created_at, total - refunded total FROM orders WHERE day = ? AND status != 'void'").all(day)) out[new Date(o.created_at).getHours()] += o.total;
   return out.map(r2);
 }
 function dashboard(db) {

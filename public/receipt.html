@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ใบเสร็จ · Butter Bunny</title>
+<link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+<link rel="stylesheet" href="/vendor/fonts/itim/400.css">
+<link rel="stylesheet" href="/vendor/fonts/ibm-plex-sans-thai-looped/400.css">
+<link rel="stylesheet" href="/vendor/fonts/ibm-plex-sans-thai-looped/600.css">
+<style>
+/* Digital receipt the customer opens from the QR on the slip or the customer display */
+:root{ --bg:#FFF5F8; --paper:#FFFFFF; --line:#F1D9E3; --fg:#3E2A33; --muted:#94788A; --accent:#C8456F; --good:#2F8F6B; --rose:#B4465A; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#241912; --paper:#33241A; --line:#55402D; --fg:#FBEEDC; --muted:#CDB394; --accent:#F2C14E; --good:#9AD7B5; --rose:#F09AA8; color-scheme:dark; } }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"IBM Plex Sans Thai Looped",system-ui,sans-serif;font-size:15px;line-height:1.5}
+.wrap{max-width:440px;margin:0 auto;padding:20px 16px 40px}
+.paper{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px 18px;box-shadow:0 10px 30px rgb(150 60 90/.08)}
+.top{text-align:center}.top img{width:72px;height:72px}
+h1{font-family:"Itim",system-ui,sans-serif;font-weight:400;font-size:26px;margin:4px 0 2px;color:var(--accent)}
+.muted{color:var(--muted)}.small{font-size:13px}
+hr{border:0;border-top:1px dashed var(--line);margin:12px 0}
+.row{display:flex;justify-content:space-between;gap:12px}
+.row span:first-child{min-width:0}
+.it small{display:block;color:var(--muted);font-size:12px}
+.total{font-size:20px;font-weight:600}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--line);font-size:12px}
+.void{color:var(--rose);font-weight:600;text-align:center}
+.btns{display:flex;gap:8px;justify-content:center;margin-top:16px}
+button{font:inherit;border:1px solid var(--line);background:var(--paper);color:var(--fg);border-radius:12px;padding:10px 16px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.err{text-align:center;padding:60px 10px}
+@media print{body{background:#fff}.btns{display:none}.paper{border:0;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="out" class="paper"><div class="muted" style="text-align:center">กำลังโหลดใบเสร็จ…</div></div>
+  <div class="btns" id="btns" hidden><button class="primary" onclick="print()">บันทึก / พิมพ์</button><button id="share">แชร์</button></div></div>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const m = n => Number(n || 0).toLocaleString("th-TH", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const PAY = {cash: "เงินสด", qr: "พร้อมเพย์", card: "บัตร"};
+const token = location.pathname.split("/").pop();
+(async () => {
+  const res = await fetch("/api/receipt/" + encodeURIComponent(token)).catch(() => null);
+  const data = res && res.ok ? await res.json() : null;
+  if (!data) { document.getElementById("out").innerHTML = `<div class="err">ไม่พบใบเสร็จนี้<br><span class="small muted">ลิงก์อาจไม่ถูกต้อง หรือมือถือยังไม่ได้ต่อ Wi-Fi ของร้าน</span></div>`; return; }
+  const {shop: sh, order: o} = data, d = new Date(o.createdAt);
+  document.title = `ใบเสร็จ ${String(o.queue).padStart(3, "0")} · ${sh.name}`;
+  document.getElementById("out").innerHTML = `<div class="top"><img src="/assets/logo.svg" alt=""><h1>${esc(sh.name)}</h1>
+      ${sh.branch ? `<div class="small muted">${esc(sh.branch)}</div>` : ""}${sh.address ? `<div class="small muted">${esc(sh.address)}</div>` : ""}
+      ${sh.taxId ? `<div class="small muted">เลขประจำตัวผู้เสียภาษี ${esc(sh.taxId)}</div>` : ""}
+      <div class="small" style="margin-top:6px">${sh.vat === "incl" ? "ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ" : "ใบเสร็จรับเงิน"}</div></div><hr>
+    <div class="row small"><span>${d.toLocaleDateString("th-TH", {day: "numeric", month: "short", year: "numeric"})} ${d.toLocaleTimeString("th-TH", {hour: "2-digit", minute: "2-digit"})}</span><span class="badge">คิว ${String(o.queue).padStart(3, "0")}</span></div>
+    <div class="row small muted"><span>เลขที่ ${esc(o.day.replace(/-/g, ""))}-${String(o.queue).padStart(3, "0")}</span><span>${o.type === "take" ? "กลับบ้าน" : "ทานที่ร้าน"} · ${esc(o.staffName || "")}</span></div><hr>
+    ${o.items.map(l => `<div class="row it"><span>${l.qty} × ${esc(l.name)}${l.opt || l.sweet != null || l.reward ? `<small>${[l.opt, l.sweet != null ? "หวาน " + l.sweet : "", l.reward ? `แลก ${l.pts * l.qty} แต้ม` : ""].filter(Boolean).map(esc).join(" · ")}</small>` : ""}</span><span>${m(l.unit * l.qty)}</span></div>`).join("")}<hr>
+    <div class="row"><span>รวม</span><span>${m(o.subtotal)}</span></div>
+    ${(o.promos || []).map(p => `<div class="row" style="color:var(--good)"><span>${esc(p.name)}</span><span>-${m(p.amt)}</span></div>`).join("")}
+    ${o.manual ? `<div class="row" style="color:var(--good)"><span>ส่วนลดพิเศษ</span><span>-${m(o.manual)}</span></div>` : ""}
+    ${o.pointsDisc ? `<div class="row" style="color:var(--good)"><span>${esc(o.voucherName || "ส่วนลดแลกแต้ม")}</span><span>-${m(o.pointsDisc)}</span></div>` : ""}
+    <div class="row total"><span>ยอดสุทธิ</span><span>฿${m(o.total)}</span></div>
+    ${o.vat ? `<div class="row small muted"><span>มูลค่าก่อนภาษี</span><span>${m(o.total - o.vat)}</span></div><div class="row small muted"><span>VAT 7% (รวมในราคา)</span><span>${m(o.vat)}</span></div>` : ""}<hr>
+    ${o.payments.map(p => `<div class="row small"><span>ชำระด้วย${PAY[p.pay]}</span><span>${m(p.amount)}</span></div>`).join("")}
+    ${o.change ? `<div class="row small"><span>เงินทอน</span><span>${m(o.change)}</span></div>` : ""}
+    ${o.refunds.length ? `<hr>${o.refunds.map(f => `<div class="row small" style="color:var(--rose)"><span>คืนเงิน ${new Date(f.createdAt).toLocaleDateString("th-TH", {day: "numeric", month: "short"})}${f.items.length ? " · " + esc(f.items.map(i => i.name + " ×" + i.qty).join(", ")) : ""}</span><span>-${m(f.amount)}</span></div>`).join("")}
+      <div class="row"><b>ยอดหลังคืนเงิน</b><b>฿${m(o.total - o.refunded)}</b></div>` : ""}
+    ${o.member ? `<hr><div class="row small"><span>สมาชิก ${esc(o.member.name || "")} ${esc(o.member.phone)}</span><span>+${o.member.earned} แต้ม${o.member.used ? ` / ใช้ ${o.member.used}` : ""}</span></div>` : ""}
+    ${o.invoiceNo ? `<div class="small muted" style="text-align:center;margin-top:8px">ออกใบกำกับภาษีเต็มรูปแล้ว เลขที่ ${esc(o.invoiceNo)}</div>` : ""}
+    ${o.status === "void" ? `<hr><div class="void">*** บิลนี้ถูกยกเลิกแล้ว ***</div>` : ""}
+    <hr><div class="small muted" style="text-align:center">${esc(sh.footer || "")}</div>`;
+  document.getElementById("btns").hidden = false;
+  const sb = document.getElementById("share");
+  if (navigator.share) sb.onclick = () => navigator.share({title: document.title, url: location.href}).catch(() => {}); else sb.hidden = true;
+})();
+</script>
+</body>
+</html>

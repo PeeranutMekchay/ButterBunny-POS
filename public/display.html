@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Butter Bunny · จอลูกค้า</title>
+<link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+<link rel="stylesheet" href="/vendor/fonts/itim/400.css">
+<link rel="stylesheet" href="/vendor/fonts/mitr/400.css">
+<link rel="stylesheet" href="/vendor/fonts/mitr/500.css">
+<script src="/vendor/qrcode/qrcode.js"></script>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("bb-theme") === "dark" ? "dark" : "light"; } catch { document.documentElement.dataset.theme = "light"; }</script>
+<style>
+/* Customer-facing display: what is on the bill, how much, the QR to scan, and the thank-you */
+:root{
+  --bg:#FFFAFC; --surface:#FFFFFF; --soft:#FFF0F5; --line:#F7E1EA; --fg:#4A2F3A; --muted:#9A7D88;
+  --accent:#C8456F; --accent-soft:#FCE3EC; --brand-ink:#8E3B5E; --good:#2F8F6B; --dot:rgb(232 120 160/.10);
+  --ff-brand:"Itim","Mitr",system-ui,sans-serif; --ff-num:"Mitr",system-ui,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#241912; --surface:#33241A; --soft:#402E21; --line:#55402D; --fg:#FBEEDC; --muted:#CDB394;
+  --accent:#F2C14E; --accent-soft:#4D3A20; --brand-ink:#FFD99A; --good:#9AD7B5; --dot:rgb(255 215 150/.05); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg) radial-gradient(var(--dot) 1.6px,transparent 1.9px) 0 0/24px 24px;color:var(--fg);font-family:var(--ff-num);overflow:hidden}
+.wrap{height:100%;display:grid;grid-template-rows:auto 1fr;gap:2.4vh;padding:3vh 3vw}
+header{display:flex;align-items:center;gap:1.4vw}
+header img{width:8vh;height:8vh}
+.brand{font-family:var(--ff-brand);font-size:4.6vh;line-height:1;color:var(--brand-ink)}
+.tag{color:var(--muted);font-size:2vh;margin-top:.5vh}
+.conn{margin-left:auto;font-size:1.8vh;color:var(--muted);display:flex;align-items:center;gap:.6vw}
+.conn i{width:1.2vh;height:1.2vh;border-radius:50%;background:#c9b2bb}.conn i.on{background:var(--good)}
+main{min-height:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:3vh;box-shadow:0 8px 30px rgb(150 60 90/.08)}
+/* idle */
+.idle{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;text-align:center}
+.idle img{width:34vh;height:34vh;animation:bob 3.2s ease-in-out infinite}
+.idle h1{font-family:var(--ff-brand);font-weight:400;font-size:8vh;margin:0;color:var(--brand-ink)}
+.idle p{font-size:3vh;color:var(--muted);margin:0}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.4vh)}}
+/* cart */
+.bill{height:100%;display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:2.4vw}
+.items{padding:2.6vh 2.4vw;overflow:hidden;display:flex;flex-direction:column}
+.items h2,.side h2{font-family:var(--ff-brand);font-weight:400;font-size:3.4vh;margin:0 0 1.6vh;color:var(--brand-ink)}
+.it{display:grid;grid-template-columns:5vh 1fr auto;gap:1vw;align-items:baseline;padding:1.2vh 0;border-bottom:1px dashed var(--line);font-size:2.8vh}
+.it .q{color:var(--accent);font-weight:500}.it small{display:block;font-size:2vh;color:var(--muted)}
+.it.new{animation:pop .5s ease}@keyframes pop{from{background:var(--accent-soft)}to{background:transparent}}
+.side{padding:2.6vh 2.2vw;display:flex;flex-direction:column;gap:1.4vh}
+.row{display:flex;justify-content:space-between;gap:1vw;font-size:2.5vh}.row.d{color:var(--good)}
+.total{margin-top:auto;border-top:2px solid var(--line);padding-top:1.6vh}
+.total .l{font-size:2.6vh;color:var(--muted)}.total .v{font-size:10vh;line-height:1.05;color:var(--brand-ink);font-variant-numeric:tabular-nums}
+.member{background:var(--soft);border-radius:2vh;padding:1.4vh 1.2vw;font-size:2.3vh}
+/* pay */
+.qr{display:flex;flex-direction:column;align-items:center;gap:1.2vh;text-align:center}
+.qr .box{background:#fff;padding:1.6vh;border-radius:2vh;border:3px solid #113566}
+.qr .pp{background:#113566;color:#fff;font-size:2vh;padding:.4vh 1.4vw;border-radius:1vh;letter-spacing:.05em}
+.qr img{width:40vh;height:40vh;display:block;image-rendering:pixelated}
+.cash{display:grid;gap:1.4vh}.cash .big{font-size:7vh;color:var(--brand-ink)}
+/* paid */
+.paid{height:100%;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:2.4vw;align-items:center}
+.thanks{text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.6vh}
+.thanks img{width:24vh;height:24vh;animation:hop .9s ease 2}
+@keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-5vh) rotate(-6deg)}}
+.thanks h1{font-family:var(--ff-brand);font-weight:400;font-size:7vh;margin:0;color:var(--brand-ink)}
+.thanks .qn{font-size:3vh;color:var(--muted)}.thanks .qn b{display:block;font-size:12vh;line-height:1;color:var(--accent)}
+.change{font-size:4vh;color:var(--good)}
+.rq{padding:3vh 2vw;display:flex;flex-direction:column;align-items:center;gap:1.4vh;text-align:center}
+.rq img{width:30vh;height:30vh;image-rendering:pixelated;background:#fff;padding:1vh;border-radius:1.4vh}
+.rq p{margin:0;font-size:2.4vh;color:var(--muted)}
+.side.paying .qr img{width:30vh;height:30vh}.side.paying .total .v{font-size:6.5vh}
+@media (orientation:portrait){.bill,.paid{grid-template-columns:1fr;grid-template-rows:auto auto}.qr img{width:30vh;height:30vh}.total .v{font-size:7vh}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="/assets/logo.svg" alt=""><div><div class="brand" id="brand">Butter Bunny</div><div class="tag" id="tag"></div></div>
+    <div class="conn"><i id="dot"></i><span id="connTxt">กำลังเชื่อมต่อ…</span></div></header>
+  <main id="main"></main>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const baht = n => "฿" + Number(n || 0).toLocaleString("th-TH", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const PAY = {cash: "เงินสด", qr: "พร้อมเพย์", card: "บัตร"};
+const station = (new URLSearchParams(location.search).get("s") || "1").toLowerCase();
+const qrImg = text => { const q = qrcode(0, "M"); q.addData(text); q.make(); return q.createDataURL(8, 2); };
+let state = {mode: "idle"}, seen = 0, idleTimer = null;
+
+function idle(){ return `<div class="idle"><img src="/assets/logo.svg" alt=""><h1>ยินดีต้อนรับค่ะ</h1><p>${esc(state.shop?.tagline || "เบเกอรี่อบสดทุกเช้า & กาแฟหอมกรุ่น")}</p></div>`; }
+function items(){
+  const L = state.lines || [];
+  const html = L.map((l, i) => `<div class="it ${i >= seen ? "new" : ""}"><span class="q">${l.qty}×</span><span>${esc(l.name)}${l.opt || l.sweet != null ? `<small>${[l.opt, l.sweet != null ? "หวาน " + l.sweet : ""].filter(Boolean).map(esc).join(" · ")}</small>` : ""}${l.reward ? `<small>แลกแต้ม</small>` : ""}</span><span>${l.reward ? "ฟรี" : baht(l.amount)}</span></div>`).join("");
+  seen = L.length;
+  return `<div class="card items"><h2>รายการของคุณ</h2>${html}</div>`;
+}
+function sums(){
+  const m = state.member;
+  return `<div class="row"><span>รวม</span><span>${baht(state.subtotal)}</span></div>
+    ${(state.discounts || []).map(d => `<div class="row d"><span>${esc(d.name)}</span><span>−${baht(d.amt)}</span></div>`).join("")}
+    ${m ? `<div class="member">🐰 คุณ${esc(m.name)} · มี ${m.points} แต้ม${m.earn ? ` · บิลนี้ได้ +${m.earn}` : ""}</div>` : ""}`;
+}
+function payBlock(){
+  const p = state.pay;
+  if (p.method === "qr" || (p.method === "split" && p.qr)) {
+    const src = p.qrImg || (p.qr ? qrImg(p.qr) : "");
+    return src ? `<div class="qr"><span class="pp">PromptPay</span><div class="box"><img src="${src}" alt="QR พร้อมเพย์"></div><div style="font-size:4vh;color:var(--brand-ink)">${baht(p.qrAmount || p.total)}</div><div style="font-size:2.2vh;color:var(--muted)">สแกนด้วยแอปธนาคารได้เลยค่ะ</div></div>` : `<div class="qr" style="font-size:3vh">รอสักครู่ กำลังสร้าง QR…</div>`;
+  }
+  if (p.method === "cash") return `<div class="cash"><div class="row"><span>รับเงิน</span><span>${p.tendered != null ? baht(p.tendered) : "–"}</span></div><div class="row"><span>เงินทอน</span><span class="big">${baht(p.change || 0)}</span></div></div>`;
+  if (p.method === "card") return `<div class="cash" style="font-size:3vh;text-align:center">แตะหรือเสียบบัตรที่เครื่องรูดบัตรได้เลยค่ะ</div>`;
+  if (p.method === "split") return `<div class="cash">${(p.split || []).map(x => `<div class="row"><span>${PAY[x.pay]}</span><span>${baht(x.amount)}</span></div>`).join("")}${p.change ? `<div class="row"><span>เงินทอน</span><span class="big">${baht(p.change)}</span></div>` : ""}</div>`;
+  return "";
+}
+function draw(){
+  clearTimeout(idleTimer);
+  if (state.shop) { $("#brand").textContent = state.shop.name; $("#tag").textContent = state.shop.tagline || ""; }
+  const m = state.mode;
+  if (m === "cart" || m === "pay") {
+    $("#main").innerHTML = `<div class="bill">${items()}<div class="card side ${m === "pay" ? "paying" : ""}"><h2>${m === "pay" ? "ชำระเงิน" : "สรุปยอด"}</h2>${m === "pay" ? payBlock() : sums()}
+      <div class="total"><div class="l">ยอดชำระ</div><div class="v">${baht(state.total)}</div></div></div></div>`;
+  } else if (m === "paid") {
+    seen = 0;
+    $("#main").innerHTML = `<div class="paid"><div class="thanks"><img src="/assets/logo.svg" alt=""><h1>ขอบคุณค่ะ</h1>
+      ${state.queue ? `<div class="qn">หมายเลขคิวของคุณ<b>${String(state.queue).padStart(3, "0")}</b></div>` : ""}
+      ${state.change ? `<div class="change">เงินทอน ${baht(state.change)}</div>` : ""}</div>
+      ${state.receiptUrl ? `<div class="card rq"><img src="${qrImg(state.receiptUrl)}" alt="QR ใบเสร็จ"><b style="font-size:3vh">สแกนรับใบเสร็จดิจิทัล</b><p>ไม่ต้องรับกระดาษ เก็บไว้ในมือถือได้เลย</p></div>` : ""}</div>`;
+    idleTimer = setTimeout(() => { state = {mode: "idle", shop: state.shop}; draw(); }, 25000);
+  } else { seen = 0; $("#main").innerHTML = idle(); }
+}
+function connect(){
+  const es = new EventSource(`/api/display/${encodeURIComponent(station)}/events`);
+  es.onopen = () => { $("#dot").className = "on"; $("#connTxt").textContent = "จุดขาย " + station; };
+  es.onmessage = e => { try { const s = JSON.parse(e.data); if (s.mode !== "cart" || state.mode !== "cart") seen = s.mode === "cart" ? 0 : seen; state = s; draw(); } catch {} };
+  es.onerror = () => { $("#dot").className = ""; $("#connTxt").textContent = "ขาดการเชื่อมต่อ กำลังลองใหม่…"; };
+}
+draw(); connect();
+</script>
+</body>
+</html>

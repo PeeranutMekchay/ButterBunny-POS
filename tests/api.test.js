@@ -211,12 +211,22 @@ test("line: settings hide the token; test message and shift-close summary are pu
   const stub = http.createServer((req, res) => { let b = ""; req.on("data", c => b += c); req.on("end", () => { got.push({ auth: req.headers.authorization, url: req.url, body: JSON.parse(b) }); res.end("{}"); }); });
   await new Promise(r => stub.listen(0, "127.0.0.1", r));
   process.env.LINE_API_BASE = `http://127.0.0.1:${stub.address().port}`;
-  const to = "U" + "a".repeat(32);
-  assert.equal((await call("PUT", "/line", { enabled: true, token: "", to }, mgr)).status, 400, "needs a token");
-  const saved = await call("PUT", "/line", { enabled: true, token: "secret-token-1234", to }, mgr);
+  const to = "U" + "a".repeat(32), staffId = "U" + "b".repeat(32);
+  const all = { shiftClose: true, lowStock: true, preorderDue: true, backupFail: true };
+  const recipients = [{ id: to, name: "เจ้าของ", events: all }, { id: staffId, name: "หัวหน้ากะ", events: { lowStock: true } }];
+  assert.equal((await call("PUT", "/line", { enabled: true, token: "", recipients }, mgr)).status, 400, "needs a token");
+  assert.equal((await call("PUT", "/line", { enabled: true, token: "x", recipients: [{ id: "bad" }] }, mgr)).status, 400, "bad id");
+  assert.equal((await call("PUT", "/line", { enabled: true, token: "x", recipients: [recipients[0], recipients[0]] }, mgr)).status, 400, "duplicate");
+  const saved = await call("PUT", "/line", { enabled: true, token: "secret-token-1234", recipients }, mgr);
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
   assert.equal(saved.body.line.hasToken, true); assert.equal(JSON.stringify(saved.body).includes("secret-token"), false);
-  assert.equal((await call("POST", "/line/test", {}, mgr)).status, 200);
-  assert.equal(got[0].auth, "Bearer secret-token-1234"); assert.equal(got[0].url, "/v2/bot/message/push"); assert.equal(got[0].body.to, to);
+  assert.equal(saved.body.line.recipients.length, 2); assert.equal(saved.body.line.recipients[1].events.shiftClose, false);
+  const t = await call("POST", "/line/test", {}, mgr);
+  assert.equal(t.status, 200); assert.equal(t.body.sent, 2, "test goes to everyone");
+  assert.equal(got[0].auth, "Bearer secret-token-1234"); assert.equal(got[0].url, "/v2/bot/message/push");
+  assert.deepEqual(got.map(g => g.body.to), [to, staffId]);
+  assert.equal((await call("POST", "/line/test", { to: staffId }, mgr)).body.sent, 1, "test one person");
+  got.length = 0;
   // a pre-order due tomorrow, taken during this shift, should appear in the shift-close message
   const P = require("../shared/pricing");
   const tmr = P.businessDay(Date.now() + 864e5, 0);
@@ -229,6 +239,7 @@ test("line: settings hide the token; test message and shift-close summary are pu
   await new Promise(r => setTimeout(r, 300));
   const closeMsg = got.map(g => g.body.messages[0].text).find(t => t.includes("ปิดกะ"));
   assert.ok(closeMsg && closeMsg.includes("ขาด"), closeMsg);
+  assert.deepEqual(got.filter(g => g.body.messages[0].text.includes("ปิดกะ")).map(g => g.body.to), [to], "only recipients who chose shift summaries");
   assert.ok(closeMsg.includes("— ออเดอร์ล่วงหน้า —") && closeMsg.includes("รับออเดอร์ใหม่ในกะนี้"), closeMsg);
   assert.ok(closeMsg.includes("ต้องส่งพรุ่งนี้") && closeMsg.includes(`10:30 ${due.body.preorder.code} เค้กชาไทย 1 ปอนด์ · คุณมิน · ค้างจ่าย ฿150`), closeMsg);
   console.log("---- LINE message at shift close ----\n" + closeMsg + "\n-------------------------------------");
@@ -367,4 +378,99 @@ test("backup: each backup is copied to a second (cloud-synced) folder", async ()
   assert.ok(b2.copyError); assert.ok(fs.existsSync(path.join(local, b2.name)));
   assert.ok((await call("GET", "/backup-settings", undefined, mgr)).body.settings.lastCopyError);
   await call("PUT", "/backup-settings", { copyDir: "" }, mgr);
+});
+
+test("split payment: cash + card adds up; shift drawer counts only the cash part", async () => {
+  const cur = (await call("GET", "/shifts/current", undefined, mgr)).body.shift;
+  const before = cur.summary.byPay;
+  const bill = payments => ({ lines: [{ id: "m-strawshort", qty: 1 }], pay: "cash", payments });
+  const price = (await call("POST", "/orders", bill([{ pay: "cash", amount: 1 }, { pay: "card", amount: 1 }]), cashier));
+  assert.equal(price.status, 400, "parts must add up to the total");
+  const total = Number(price.body.error.match(/ยอดบิล ฿([\d.]+)/)[1]);
+  assert.equal((await call("POST", "/orders", { ...bill([{ pay: "cash", amount: 40 }, { pay: "card", amount: total - 40 }]), tendered: 30 }, cashier)).status, 400, "short cash");
+  assert.equal((await call("POST", "/orders", bill([{ pay: "cash", amount: 10 }, { pay: "cash", amount: total - 10 }]), cashier)).status, 400, "one cash part");
+  const r = await call("POST", "/orders", { ...bill([{ pay: "cash", amount: 40 }, { pay: "card", amount: total - 40, ref: "A123" }]), tendered: 100 }, cashier);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const o = r.body.order;
+  assert.deepEqual(o.payments.map(p => [p.pay, p.amount]), [["cash", 40], ["card", total - 40]]);
+  assert.equal(o.change, 60); assert.equal(o.ref, "A123"); assert.equal(o.pay, total - 40 > 40 ? "card" : "cash");
+  const after = (await call("GET", "/shifts/current", undefined, mgr)).body.shift.summary.byPay;
+  assert.equal(after.cash - before.cash, 40); assert.equal(Math.round((after.card - before.card) * 100) / 100, total - 40);
+  globalThis.splitOrder = o;
+});
+
+test("partial refund: some items back, stock and points follow, drawer goes down", async () => {
+  await call("POST", "/members", { phone: "0899999999", name: "ลูกค้าคืนของ" }, cashier);
+  const sale = await call("POST", "/orders", { lines: [{ id: "m-croissant", qty: 3 }, { id: "m-latte", qty: 1, opt: "ร้อน" }], pay: "cash", tendered: 1000, memberPhone: "0899999999" }, cashier);
+  assert.equal(sale.status, 200, JSON.stringify(sale.body));
+  const o = sale.body.order, stock0 = stockOf("m-croissant"), pts0 = pointsOf("0899999999");
+  const drawer0 = (await call("GET", "/shifts/current", undefined, mgr)).body.shift.expectedCash;
+  assert.equal((await call("POST", `/orders/${o.id}/refund`, { items: [{ line: 1, qty: 1 }] }, cashier)).status, 403, "manager only");
+  assert.equal((await call("POST", `/orders/${o.id}/refund`, { items: [{ line: 1, qty: 4 }] }, mgr)).status, 400, "more than sold");
+  const f = await call("POST", `/orders/${o.id}/refund`, { items: [{ line: 1, qty: 2 }], reason: "ไหม้", pay: "cash" }, mgr);
+  assert.equal(f.status, 200, JSON.stringify(f.body));
+  const unit = o.items[0].unit, expect = Math.round(unit * 2 * o.total / o.subtotal * 100) / 100;
+  assert.equal(f.body.order.refunded, expect);
+  assert.equal(stockOf("m-croissant"), stock0 + 2);
+  assert.ok(pointsOf("0899999999") < pts0);
+  assert.equal(Math.round(((await call("GET", "/shifts/current", undefined, mgr)).body.shift.expectedCash - drawer0) * 100) / 100, -expect);
+  assert.equal((await call("POST", `/orders/${o.id}/refund`, { items: [{ line: 1, qty: 2 }] }, mgr)).status, 400, "only 1 left");
+  assert.equal((await call("POST", `/orders/${o.id}/refund`, { amount: 99999 }, mgr)).status, 400, "not above what is left");
+  assert.equal((await call("POST", `/orders/${o.id}/void`, { reason: "x" }, mgr)).status, 409, "no void after a refund");
+  const list = (await call("GET", "/audit?q=" + encodeURIComponent("ไหม้"), undefined, mgr)).body.entries;
+  assert.equal(list[0].action, "order_refund");
+});
+
+test("tax invoice: needs VAT + shop tax id, numbers run, blocks refund until cancelled", async () => {
+  const o = globalThis.splitOrder;
+  const buyer = { name: "บริษัท ขนมดี จำกัด", taxId: "0105555555555", branch: "1", address: "99 ถนนสุขุมวิท กรุงเทพฯ 10110" };
+  await call("PUT", "/config/shop", { taxId: "", address: "" }, mgr);
+  assert.equal((await call("POST", `/orders/${o.id}/invoice`, buyer, cashier)).status, 400, "shop tax id missing");
+  await call("PUT", "/config/shop", { taxId: "0123456789012", address: "1 ถนนเนย เขตกระต่าย กรุงเทพฯ", taxBranch: "สำนักงานใหญ่" }, mgr);
+  assert.equal((await call("POST", `/orders/${o.id}/invoice`, { ...buyer, taxId: "123" }, cashier)).status, 400, "buyer tax id 13 digits");
+  const r = await call("POST", `/orders/${o.id}/invoice`, buyer, cashier);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const iv = r.body.invoice;
+  assert.match(iv.no, /^INV\d{4}-00001$/); assert.equal(iv.buyer.branch, "00001"); assert.equal(iv.total, o.total);
+  assert.equal(iv.vat, Math.round(o.total * 7 / 107 * 100) / 100);
+  assert.equal(Math.round(iv.items.reduce((a, l) => a + l.amount, 0) * 100) / 100, iv.total);
+  assert.equal(iv.seller.taxId, "0123456789012");
+  assert.equal((await call("POST", `/orders/${o.id}/invoice`, buyer, cashier)).status, 409, "one per bill");
+  assert.equal((await call("POST", `/orders/${o.id}/refund`, { amount: 5 }, mgr)).status, 409);
+  assert.deepEqual((await call("GET", "/invoice-buyer/0105555555555", undefined, cashier)).body.buyer.name, buyer.name);
+  assert.equal((await call("POST", `/invoices/${iv.id}/cancel`, { reason: "ชื่อผิด" }, cashier)).status, 403);
+  assert.equal((await call("POST", `/invoices/${iv.id}/cancel`, { reason: "ชื่อผิด" }, mgr)).status, 200);
+  const again = await call("POST", `/orders/${o.id}/invoice`, { ...buyer, name: "บริษัท ขนมดีมาก จำกัด" }, cashier);
+  assert.match(again.body.invoice.no, /-00002$/, "cancelled numbers are not reused");
+  const day = new Date().toISOString().slice(0, 10);
+  const all = (await call("GET", `/invoices?from=${day}&to=${day}`, undefined, mgr)).body.invoices;
+  assert.equal(all.length, 2); assert.ok(all[0].cancelledAt);
+});
+
+test("digital receipt: public link by token shows the bill without the phone number", async () => {
+  const day = (await call("GET", "/bootstrap", undefined, cashier)).body.today.day;
+  const o = (await call("GET", `/orders?from=${day}&to=${day}`, undefined, mgr)).body.orders.find(x => x.memberId === "0899999999");
+  assert.match(o.receiptToken, /^[0-9a-f]{24}$/);
+  const r = await call("GET", "/receipt/" + o.receiptToken);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.order.total, o.total); assert.equal(r.body.order.refunded, o.refunded);
+  assert.equal(JSON.stringify(r.body).includes("0899999999"), false); assert.equal(r.body.order.member.phone, "089-xxx-9999");
+  assert.equal((await call("GET", "/receipt/" + "0".repeat(24))).status, 404);
+  assert.equal((await call("GET", "/receipt/abc")).status, 404);
+  const page = await fetch(base.replace("/api", "") + "/r/" + o.receiptToken);
+  assert.equal(page.status, 200); assert.ok((await page.text()).includes("receipt"));
+});
+
+test("customer display: the cashier's state reaches the display stream", async () => {
+  const http = require("node:http");
+  const got = await new Promise((resolve, reject) => {
+    const req = http.get(base + "/display/1/events", res => {
+      let buf = "", n = 0;
+      res.on("data", c => { buf += c; const msgs = buf.split("\n\n").filter(x => x.includes("data:")); if (msgs.length > n) { n = msgs.length; if (n === 1) call("PUT", "/display/1", { mode: "cart", total: 85, lines: [{ name: "ลาเต้", qty: 1, amount: 85 }] }, cashier); if (n === 2) { req.destroy(); resolve(msgs.map(m => JSON.parse(m.slice(m.indexOf("data:") + 5)))); } } });
+    });
+    req.on("error", e => { if (e.code !== "ECONNRESET") reject(e); });
+  });
+  assert.equal(got[0].mode, "idle"); assert.equal(got[1].mode, "cart"); assert.equal(got[1].total, 85);
+  assert.equal((await call("PUT", "/display/1", { mode: "idle" })).status, 401, "only staff can drive it");
+  assert.equal((await call("PUT", "/display/bad%20name", { mode: "idle" }, cashier)).status, 400);
 });
