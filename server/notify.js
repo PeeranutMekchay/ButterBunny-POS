@@ -50,14 +50,26 @@ function makeNotifier(db) {
 
 const baht = n => "฿" + Number(n || 0).toLocaleString("th-TH", { maximumFractionDigits: 2 });
 const lowStockText = items => `⚠️ สต็อกใกล้หมด\n${items.map(i => `• ${i.name} เหลือ ${i.qty}`).join("\n")}`;
-function shiftCloseText(shop, s) {
+const thDay = day => new Date(day + "T12:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+const preState = p => p.status === "cancelled" ? " · ยกเลิกแล้ว" : p.status === "picked" ? " · รับของแล้ว" : p.balance ? ` · ค้างจ่าย ${baht(p.balance)}` : " · จ่ายครบ";
+const preLine = (p, withDay) => `• ${withDay ? thDay(p.pickupDay) + " " : ""}${p.pickupTime || "--:--"} ${p.code} ${p.title}${p.qty > 1 ? " ×" + p.qty : ""} · ${p.customer}${preState(p)}`;
+const preList = (title, list, withDay) => !list.length ? [] : [`${title} ${list.length} รายการ`, ...list.slice(0, 10).map(p => preLine(p, withDay)), ...(list.length > 10 ? [`…และอีก ${list.length - 10} รายการ`] : [])];
+// pre = { taken, todayLeft, tomorrow, overdue, tomorrowDay } from ops.shiftPreorders
+function shiftCloseText(shop, s, pre) {
   const x = s.summary, d = s.diff;
+  const preLines = pre ? [
+    ...preList("📝 รับออเดอร์ใหม่ในกะนี้", pre.taken, true),
+    ...preList("⏰ วันนี้ยังไม่มารับ", pre.todayLeft, false),
+    ...preList(`🎂 ต้องส่งพรุ่งนี้ (${thDay(pre.tomorrowDay)})`, pre.tomorrow, false),
+    ...preList("⚠️ เลยวันรับแล้ว", pre.overdue, true),
+  ] : [];
   return [`🐰 ${shop.name} ปิดกะแล้ว`, `ปิดโดย ${s.closedBy} · ${new Date(s.closedAt).toLocaleString("th-TH")}`, "",
     `ยอดขาย ${baht(x.sales)} (${x.bills} บิล)`, `เงินสด ${baht(x.byPay.cash)} · พร้อมเพย์ ${baht(x.byPay.qr)} · บัตร ${baht(x.byPay.card)}`,
     x.voids ? `ยกเลิก ${x.voids} บิล (${baht(x.voidTotal)})` : null,
     (x.preorder.cash || x.preorder.qr || x.preorder.card) ? `รับเงินออเดอร์ล่วงหน้า ${baht(x.preorder.cash + x.preorder.qr + x.preorder.card)}` : null, "",
     `เงินในลิ้นชักที่ควรมี ${baht(s.expectedCash)}`, `นับได้จริง ${baht(s.countedCash)}`,
-    d === 0 ? "✅ ตรงพอดี" : d > 0 ? `⬆️ เกิน ${baht(d)}` : `⬇️ ขาด ${baht(-d)}`].filter(v => v !== null).join("\n");
+    d === 0 ? "✅ ตรงพอดี" : d > 0 ? `⬆️ เกิน ${baht(d)}` : `⬇️ ขาด ${baht(-d)}`,
+    ...(preLines.length ? ["", "— ออเดอร์ล่วงหน้า —", ...preLines] : [])].filter(v => v !== null).join("\n");
 }
 function preorderDueText(day, list) {
   return `🎂 ออเดอร์ล่วงหน้าที่ต้องรับพรุ่งนี้ (${day}) ${list.length} รายการ\n` +

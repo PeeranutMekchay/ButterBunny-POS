@@ -217,12 +217,21 @@ test("line: settings hide the token; test message and shift-close summary are pu
   assert.equal(saved.body.line.hasToken, true); assert.equal(JSON.stringify(saved.body).includes("secret-token"), false);
   assert.equal((await call("POST", "/line/test", {}, mgr)).status, 200);
   assert.equal(got[0].auth, "Bearer secret-token-1234"); assert.equal(got[0].url, "/v2/bot/message/push"); assert.equal(got[0].body.to, to);
+  // a pre-order due tomorrow, taken during this shift, should appear in the shift-close message
+  const P = require("../shared/pricing");
+  const tmr = P.businessDay(Date.now() + 864e5, 0);
+  const due = await call("POST", "/preorders", { customer: "คุณมิน", pickupDay: tmr, pickupTime: "10:30", title: "เค้กชาไทย 1 ปอนด์", total: 250, deposit: 100, pay: "cash" }, cashier);
+  assert.equal(due.status, 200, JSON.stringify(due.body));
   // close the shift: counted cash vs expected, and a LINE summary
   const cur = (await call("GET", "/shifts/current", undefined, cashier)).body.shift;
   const closed = await call("POST", "/shifts/current/close", { counted: cur.expectedCash - 20, note: "ทอนผิด" }, cashier);
   assert.equal(closed.status, 200); assert.equal(closed.body.shift.diff, -20);
   await new Promise(r => setTimeout(r, 300));
-  assert.ok(got.some(g => g.body.messages[0].text.includes("ปิดกะ") && g.body.messages[0].text.includes("ขาด")));
+  const closeMsg = got.map(g => g.body.messages[0].text).find(t => t.includes("ปิดกะ"));
+  assert.ok(closeMsg && closeMsg.includes("ขาด"), closeMsg);
+  assert.ok(closeMsg.includes("— ออเดอร์ล่วงหน้า —") && closeMsg.includes("รับออเดอร์ใหม่ในกะนี้"), closeMsg);
+  assert.ok(closeMsg.includes("ต้องส่งพรุ่งนี้") && closeMsg.includes(`10:30 ${due.body.preorder.code} เค้กชาไทย 1 ปอนด์ · คุณมิน · ค้างจ่าย ฿150`), closeMsg);
+  console.log("---- LINE message at shift close ----\n" + closeMsg + "\n-------------------------------------");
   assert.equal((await call("GET", "/shifts/current", undefined, cashier)).body.shift, null);
   assert.equal((await call("GET", "/shifts", undefined, mgr)).body.shifts.length, 1);
   stub.close(); delete process.env.LINE_API_BASE;

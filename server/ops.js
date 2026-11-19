@@ -176,6 +176,18 @@ function cancelPreorder(db, id, { refund, pay = "cash", reason }, staff) {
     return preOut(db, getPre(db, r.id));
   });
 }
+// Pre-orders worth mentioning when a shift closes: taken during the shift, still to be collected
+// today, due tomorrow, and overdue.
+function shiftPreorders(db, shift) {
+  const today = R.bday(db), tomorrowDay = R.shiftDays(today, 1);
+  const taken = db.prepare("SELECT * FROM preorders WHERE created_at BETWEEN ? AND ? ORDER BY created_at").all(shift.openedAt, shift.closedAt || Date.now()).map(r => preOut(db, r));
+  const open = listPreorders(db).filter(p => ["pending", "ready"].includes(p.status));
+  const byTime = (a, b) => (a.pickupDay + (a.pickupTime || "")).localeCompare(b.pickupDay + (b.pickupTime || ""));
+  return { taken, tomorrowDay,
+    todayLeft: open.filter(p => p.pickupDay === today).sort(byTime),
+    tomorrow: open.filter(p => p.pickupDay === tomorrowDay).sort(byTime),
+    overdue: open.filter(p => p.pickupDay < today).sort(byTime) };
+}
 const prePaymentsInRange = (db, from, to) => db.prepare(`SELECT pp.*, p.code, p.customer_name FROM preorder_payments pp JOIN preorders p ON p.id = pp.preorder_id
   WHERE pp.day BETWEEN ? AND ? ORDER BY pp.created_at`).all(from, to).map(p => ({ code: p.code, customer: p.customer_name, day: p.day, createdAt: p.created_at, kind: p.kind, amount: p.amount, pay: p.pay, staffName: p.staff_name }));
 
@@ -255,5 +267,5 @@ function queueBoard(db) {
 }
 
 module.exports = { DENOMS, currentShift, listShifts, openShift, addCashMove, closeShift, shiftSummary,
-  listPreorders, createPreorder, updatePreorder, markPreorderReady, pickupPreorder, cancelPreorder, prePaymentsInRange,
+  listPreorders, createPreorder, updatePreorder, markPreorderReady, pickupPreorder, cancelPreorder, prePaymentsInRange, shiftPreorders,
   recordWaste, listWaste, bakePlan, dashboard, queueBoard };

@@ -96,7 +96,7 @@ function createApp({ db, uploadsDir, backupDir = path.join(uploadsDir, "..", "ba
   api.post("/shifts/current/moves", wrap(req => { const shift = O.addCashMove(db, req.body || {}, req.staff); broadcast("shift"); return { shift }; }));
   api.post("/shifts/current/close", wrap(req => {
     const shift = O.closeShift(db, req.body || {}, req.staff); broadcast("shift");
-    notify("shiftClose", N.shiftCloseText(R.getShop(db), shift));
+    notify("shiftClose", N.shiftCloseText(R.getShop(db), shift, O.shiftPreorders(db, shift)));
     return { shift };
   }));
   api.get("/shifts", manager, wrap(() => ({ shifts: O.listShifts(db, 60) })));
