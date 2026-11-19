@@ -21,6 +21,7 @@
   --accent:#F2C14E; --on-accent:#3A2510; --accent-soft:#4D3A20; --brand-ink:#FFD99A; --butter:#F2C14E; --dot:rgb(255 215 150/.05); color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%;margin:0}
 body{background:var(--bg) radial-gradient(var(--dot) 1.6px,transparent 1.9px) 0 0/24px 24px;color:var(--fg);font-family:var(--ff-num);overflow:hidden}
 .wrap{height:100%;display:grid;grid-template-rows:auto 1fr auto;gap:2vh;padding:3vh max(3vw,env(safe-area-inset-right,0px)) 2vh max(3vw,env(safe-area-inset-left,0px))}
@@ -51,6 +52,11 @@ footer button{font:inherit;border:1px solid var(--line);background:var(--surface
 .chips{display:flex;gap:.8vw}
 .chip{font:inherit;font-size:max(13px,1.9vh);display:inline-flex;align-items:center;gap:.5em;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:.9vh 1.4vw;cursor:pointer;box-shadow:0 6px 18px rgb(150 60 90/.12)}
 .chip svg{width:1.2em;height:1.2em}
+.gear{position:relative;width:max(44px,5.6vh);height:max(44px,5.6vh);border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--brand-ink);cursor:pointer;display:grid;place-items:center;padding:0;box-shadow:0 6px 18px rgb(150 60 90/.12);opacity:.75;transition:opacity .2s}
+.gear:hover,.gear[aria-expanded="true"]{opacity:1}
+.gear svg{width:58%;height:58%;transition:transform .45s ease}
+.gear[aria-expanded="true"] svg{transform:rotate(90deg)}
+.gear .off{position:absolute;right:-2px;top:-2px;width:max(16px,1.9vh);height:max(16px,1.9vh);border-radius:50%;background:var(--muted);color:#fff;display:grid;place-items:center;font-size:max(10px,1.2vh);line-height:1}
 .chip.need{background:var(--accent);color:var(--on-accent);border-color:var(--accent);animation:nudge 2.4s ease-in-out infinite}
 .vpanel{width:min(400px,92vw);background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:0 18px 50px rgb(150 60 90/.18);display:grid;gap:12px;font-size:15px}
 .vpanel h3{margin:0;font-family:var(--ff-brand);font-weight:400;font-size:20px;color:var(--brand-ink)}
@@ -141,9 +147,10 @@ footer button{font:inherit;border:1px solid var(--line);background:var(--surface
     <label>ความเร็ว <span id="rateVal"></span><input type="range" id="rate" min="0.7" max="1.3" step="0.05"></label>
     <div class="row"><span style="font-size:13px;color:var(--muted)">พูดซ้ำ</span><button data-rep="1">1 รอบ</button><button data-rep="2">2 รอบ</button></div>
     <p class="hint" id="voiceHint"></p>
-    <div class="row"><button class="primary" id="testVoice">ทดสอบเสียง</button><button id="muteBtn">ปิดเสียง</button><button id="closePanel">ปิด</button></div>
+    <div class="row"><button class="primary" id="testVoice">ทดสอบเสียง</button><button id="muteBtn">ปิดเสียง</button><button id="fs">เต็มจอ</button><button id="closePanel">พับเก็บ</button></div>
   </div>
-  <div class="chips"><button class="chip need" id="soundChip"></button><button class="chip" id="fs">เต็มจอ</button></div>
+  <div class="chips"><button class="chip need" id="soundChip"></button>
+    <button class="gear" id="gear" aria-label="ตั้งค่าเสียงเรียกคิว" aria-expanded="false" title="ตั้งค่าเสียงเรียกคิว"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg><span class="off" id="gearOff" hidden>×</span></button></div>
 </div>
 <script>
 (() => {
@@ -184,11 +191,14 @@ function announce(nums){
   if (!audio || SET.muted || !hasTTS || !pickVoice()) return;
   setTimeout(() => { for (let r = 0; r < SET.repeat; r++) nums.forEach(n => speak(phrase(n))); }, 900);
 }
+// Folded away to a gear; the big "tap to enable sound" chip shows only until the browser allows audio.
 function paintChip(){
   const c = $("#soundChip");
-  if (!audio) { c.className = "chip need"; c.innerHTML = SPK + "แตะเพื่อเปิดเสียงเรียกคิว"; return; }
-  c.className = "chip"; c.innerHTML = SPK + (SET.muted ? "เสียงปิดอยู่" : "เสียงเรียกคิว");
+  c.hidden = !!audio; c.className = "chip need"; c.innerHTML = SPK + "แตะเพื่อเปิดเสียงเรียกคิว";
+  $("#gearOff").hidden = !(audio && SET.muted);
+  $("#gear").title = audio && SET.muted ? "เสียงปิดอยู่ · ตั้งค่าเสียงเรียกคิว" : "ตั้งค่าเสียงเรียกคิว";
 }
+function setPanel(open){ $("#vpanel").hidden = !open; $("#gear").setAttribute("aria-expanded", open); if (open) fillPanel(); }
 function fillPanel(){
   const vs = thVoices(), cur = pickVoice();
   $("#voiceSel").innerHTML = vs.length ? vs.sort((a, b) => score(a) - score(b)).map(v => `<option value="${v.name.replace(/"/g, "&quot;")}" ${cur && v.name === cur.name ? "selected" : ""}>${v.name}</option>`).join("") : `<option value="">ไม่มีเสียงภาษาไทยในเครื่องนี้</option>`;
@@ -205,8 +215,11 @@ function enableSound(){
   try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch {}
   SET.muted = false; saveSet(); chime(); paintChip();
 }
-$("#soundChip").onclick = () => { if (!audio) { enableSound(); return; } const p = $("#vpanel"); p.hidden = !p.hidden; if (!p.hidden) fillPanel(); };
-$("#closePanel").onclick = () => { $("#vpanel").hidden = true; };
+$("#soundChip").onclick = () => enableSound();
+$("#gear").onclick = e => { e.stopPropagation(); setPanel($("#vpanel").hidden); };
+$("#closePanel").onclick = () => setPanel(false);
+document.addEventListener("click", e => { if (!$("#vpanel").hidden && !e.target.closest(".corner")) setPanel(false); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") setPanel(false); });
 $("#voiceSel").onchange = e => { SET.voice = e.target.value; saveSet(); fillPanel(); };
 $("#rate").oninput = e => { SET.rate = +e.target.value; saveSet(); $("#rateVal").textContent = "x" + SET.rate.toFixed(2); };
 document.querySelectorAll("[data-rep]").forEach(b => b.onclick = () => { SET.repeat = +b.dataset.rep; saveSet(); fillPanel(); });
