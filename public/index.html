@@ -73,6 +73,37 @@ h2{font-size:21px} h3{font-size:16px}
 .main{min-width:0;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 .main>section{max-width:1280px;margin:0 auto}
 .topline{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.backbtn{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--surface);color:var(--brand-ink);border-radius:999px;padding:7px 14px 7px 8px;cursor:pointer;font:inherit;font-size:14px;align-self:center}
+.backbtn svg{width:20px;height:20px}.backbtn:hover{background:var(--soft)}
+/* home launcher: big tiles in the middle of the screen */
+.app.home{grid-template-columns:1fr}
+.home-wrap{min-height:100vh;display:flex;flex-direction:column;padding:20px max(16px,env(safe-area-inset-right,0px)) 32px max(16px,env(safe-area-inset-left,0px))}
+.home-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.home-top .logo{width:52px;height:52px;border-radius:16px;background:var(--accent-soft);display:grid;place-items:center;flex:none}
+.home-top .logo svg{width:42px;height:42px}
+.home-top .nm{font-family:var(--ff-brand);font-size:22px;color:var(--brand-ink);margin-right:auto;line-height:1.1}
+.home-top .ic{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;cursor:pointer;font:inherit;font-size:14px;color:var(--fg)}
+.home-top .ic svg{width:18px;height:18px}
+.home-center{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:26px;padding:28px 0}
+.hello{text-align:center}
+.hello h1{font-family:var(--ff-brand);font-weight:400;font-size:clamp(28px,4.4vw,44px);color:var(--brand-ink);margin:0;line-height:1.15}
+.hello p{margin:6px 0 0;color:var(--muted)}
+.tiles{--n:4;--g:16px;width:min(1060px,100%);display:flex;flex-wrap:wrap;justify-content:center;gap:var(--g)}
+.tiles .tile{width:calc((100% - (var(--n) - 1) * var(--g)) / var(--n))}
+.tile{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:22px;padding:22px 16px 18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:var(--fg);font:inherit;box-shadow:0 6px 22px rgb(150 60 90/.07);transition:transform .15s,box-shadow .15s}
+.tile:hover{transform:translateY(-3px);box-shadow:0 14px 32px rgb(150 60 90/.13)}
+.tile:active{transform:translateY(0) scale(.98)}
+.tile .ib{width:68px;height:68px;border-radius:22px;display:grid;place-items:center;background:var(--c-soft,var(--accent-soft));color:var(--c,var(--accent-ink))}
+.tile .ib svg{width:34px;height:34px}
+.tile b{font-family:var(--ff-display);font-weight:500;font-size:19px}
+.tile small{color:var(--muted);font-size:12.5px;line-height:1.4}
+.tile .bdg{position:absolute;top:12px;right:12px;border-radius:999px;padding:2px 9px;font-size:12px;background:var(--peach);color:#fff}
+.tile .bdg.ok{background:var(--accent-soft);color:var(--accent-ink)}
+.tiles .tile.main-tile{width:100%;padding-block:26px;flex-direction:row;justify-content:center;gap:18px;background:linear-gradient(135deg,var(--accent-soft),var(--surface))}
+.tile.main-tile .ib{width:84px;height:84px}.tile.main-tile .ib svg{width:42px;height:42px}
+.tile.main-tile b{font-size:26px}.tile.main-tile div{text-align:left;display:grid;gap:4px}
+@media (max-width:900px){.tiles{--n:3}}
+@media (max-width:620px){.tiles{--n:2;--g:12px}.tile{padding:18px 10px 14px}.tile .ib{width:56px;height:56px}.tile small{display:none}.tile.main-tile b{font-size:22px}}
 .topline h2{margin-right:auto}
 .who{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;font-size:13px}
 .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--peach-soft);color:var(--peach);font-weight:600;font-size:13px;flex:none}
@@ -511,6 +542,8 @@ const LIB = {
   qr:"/vendor/qrcode/qrcode.js"
 };
 const ICON = {
+  home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-5.5h4V20"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
   pos:'<path d="M6 7h12l-1 12H7L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>',
   orders:'<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 9h6M9 13h6M9 17h3"/>',
   menu:'<path d="M4 15c0-5 4-8 8-8s8 3 8 8"/><path d="M3 15h18M8 11l1 4M16 11l-1 4M12 9v6"/>',
@@ -564,7 +597,7 @@ const ss = {get(k){ try { return JSON.parse(sessionStorage.getItem(k)); } catch 
 const S = {
   menu: [], stock: {}, promos: [], members: [], staff: [], shop: {}, today: [], rewards: [], todayRedeems: [],
   loaded: {menu:false, staff:false},
-  staffMe: null, view: "pos",
+  staffMe: null, view: "home",
   cart: [], otype: "dine", cat: "all", query: "", coupon: "", manualDisc: 0, discountOk: null, member: null, voucher: null, note: "",
   rep: {range: "today", from: dayKey(Date.now()), to: dayKey(Date.now()), orders: null, loading: false},
   ticketOpen: false, readOnlyMsg: "", online: true, pub: null, todayKey: null,
@@ -670,7 +703,7 @@ async function tryPin(){
   try {
     const r = await api.req("POST", "/api/auth/login", {staffId: pinFor, pin});
     api.setToken(r.token); S.staffMe = r.staff; pinFor = null;
-    S.view = r.staff.role === "manager" ? (ss.get("crumb-view") || "pos") : "pos";
+    S.view = "home"; navDepth = 0; try { history.replaceState({v: "home"}, ""); } catch {}
     await store.refresh(); toast("สวัสดี " + r.staff.name);
   } catch (e) { const el = $("#pinErr"); if (el) el.textContent = e.message; }
 }
@@ -735,12 +768,17 @@ function render(){ if (renderQ) return; renderQ = true; requestAnimationFrame(()
 function draw(){
   const keepFocus = document.activeElement?.id, selS = document.activeElement?.selectionStart;
   if (!S.staffMe) { $("#root").innerHTML = renderLogin(); drawDots(); applyDraft(); restore(keepFocus, selS); return; }
-  if (!isMgr() && NAV.find(n => n[0] === S.view)?.[2]) S.view = "pos";
+  if (!isMgr() && NAV.find(n => n[0] === S.view)?.[2]) S.view = "home";
   const pend = S.today.filter(o => o.status === "preparing").length;
+  if (S.view === "home") {
+    $("#root").innerHTML = `<div class="app home">${S.readOnlyMsg ? `<div class="notice">${esc(S.readOnlyMsg)}</div>` : ""}${viewHome(pend)}</div>`;
+    applyDraft(); restore(keepFocus, selS); pushDisplay(); return;
+  }
   const views = {dash: viewDash, pre: viewPre, shift: viewShift, bake: viewBake, pos: viewPOS, orders: viewOrders, members: viewMembers, menu: viewMenu, promos: viewPromos, rewards: viewRewards, report: viewReport, shop: viewShop, audit: viewAudit};
   $("#root").innerHTML = `<div class="app">
     <nav class="rail" aria-label="เมนูหลัก">
-      <div class="logo" title="${esc(shop().name)}">${BUNNY}</div>
+      <button class="logo" data-nav="home" title="หน้าหลัก" aria-label="หน้าหลัก" style="padding:0;display:grid;place-items:center">${BUNNY}</button>
+      <button data-nav="home" class="homebtn">${svg("home")}<span>หน้าหลัก</span></button>
       ${NAV.filter(n => !n[2] || isMgr()).map(([k,l]) => `<button data-nav="${k}" aria-current="${S.view===k}">${svg(k)}<span>${l}</span>${k==="orders"&&pend?`<span class="count">${pend}</span>`:""}</button>`).join("")}
       <div class="spacer"></div>
       <button data-themetoggle title="${themeBtnLabel()}">${svg(isDark() ? "sun" : "moon")}<span>${isDark() ? "สว่าง" : "มืด"}</span></button>
@@ -759,7 +797,7 @@ const keepDraft = e => { const t = e.target; if (t.id && t.closest?.("#root form
 document.addEventListener("input", keepDraft); document.addEventListener("change", keepDraft);
 function applyDraft(){ for (const [k, v] of Object.entries(formDraft)) { const el = document.getElementById(k); if (el && el.closest("#root")) { if (el.type === "checkbox") el.checked = v; else el.value = v; } } }
 function restore(id, pos){ if (!id) return; const el = document.getElementById(id); if (el && el !== document.activeElement) { el.focus(); try { if (pos != null) el.setSelectionRange(pos, pos); } catch {} } }
-const head = (title, extra = "") => `<div class="topline"><div class="ttl"><h2>${title}</h2><div class="sub">${SUB[S.view] || ""}</div></div>${extra}
+const head = (title, extra = "") => `<div class="topline"><button class="backbtn" data-back aria-label="ย้อนกลับ">${svg("back")}กลับ</button><div class="ttl"><h2>${title}</h2><div class="sub">${SUB[S.view] || ""}</div></div>${extra}
   <span class="sync"><i class="${S.online?"on":""}"></i>${S.online?"เชื่อมต่อเซิร์ฟเวอร์แล้ว":"ขาดการเชื่อมต่อเซิร์ฟเวอร์"}</span>
   <span class="who"><span class="av ${avc(S.staffMe.name)}">${esc(initial(S.staffMe.name))}</span>${esc(S.staffMe.name)} · ${isMgr()?"ผู้จัดการ":"แคชเชียร์"}</span></div>`;
 const phHTML = (m, cls = "ph") => { const src = itemImg(m); return `<div class="${cls} ${src ? "" : "t-" + esc(m.cat)}">${src ? `<img src="${esc(src)}" alt="" loading="lazy">` : `<span class="ini">${esc(initial(m.name))}</span>`}</div>`; };
@@ -2318,6 +2356,43 @@ document.addEventListener("submit", async e => {
     catch (err) { $("#pvErr").textContent = err.message; } }
 });
 
+/* ================= navigation ================= */
+let navDepth = 0;
+function go(v, push = true){
+  if (v === S.view) { window.scrollTo(0, 0); return; }
+  clearDraft(); viewLoad(v); S.view = v; ss.set("crumb-view", v); if (v === "report") S.rep.orders = null;
+  if (push) { try { history.pushState({v}, ""); navDepth++; } catch {} }
+  window.scrollTo(0, 0); render();
+}
+window.addEventListener("popstate", e => {
+  if (!S.staffMe) return;
+  navDepth = Math.max(0, navDepth - 1);
+  if ($("#modalRoot").innerHTML) $("#modalRoot").innerHTML = "";
+  go(e.state?.v || "home", false);
+});
+const TILE_C = {pos: ["var(--accent)", "var(--accent-soft)"], orders: ["#C2703D", "#FCE9DA"], pre: ["#B0527A", "#F9E1EC"], shift: ["#3D7EA6", "#DDEEF7"], bake: ["#A0782B", "#F8EDD2"],
+  members: ["#7A5BB0", "#ECE4F8"], dash: ["#C8456F", "#FCE3EC"], menu: ["#C2703D", "#FCE9DA"], promos: ["#2F8F6B", "#DDF3EA"], rewards: ["#B0527A", "#F9E1EC"], report: ["#3D7EA6", "#DDEEF7"], shop: ["#7A5BB0", "#ECE4F8"]};
+function viewHome(pend){
+  const h = new Date().getHours(), hi = h < 11 ? "สวัสดีตอนเช้า" : h < 16 ? "สวัสดีตอนบ่าย" : "สวัสดีตอนเย็น";
+  const dueToday = (S.preorders || []).filter(p => p.pickupDay === S.todayKey && ["pending", "ready"].includes(p.status)).length;
+  const low = isMgr() ? S.menu.filter(m => m.active !== false && m.trackStock && (stockOf(m.id) ?? 99) <= (shop().lowStockAt ?? 5)).length : 0;
+  const badge = k => k === "orders" && pend ? `<span class="bdg">${pend} รอทำ</span>` : k === "pre" && dueToday ? `<span class="bdg">วันนี้ ${dueToday}</span>`
+    : k === "shift" ? (S.shift ? `<span class="bdg ok">เปิดอยู่</span>` : `<span class="bdg">ยังไม่เปิด</span>`) : k === "menu" && low ? `<span class="bdg">ใกล้หมด ${low}</span>` : "";
+  const tile = ([k, l]) => { const [c, cs] = TILE_C[k] || []; const main = k === "pos";
+    return `<button class="tile ${main ? "main-tile" : ""}" data-nav="${k}" style="${c ? `--c:${c};--c-soft:${cs}` : ""}">${badge(k)}<span class="ib">${svg(k, 34)}</span>${main ? `<div><b>${l}</b><small>${SUB[k]}</small></div>` : `<b>${l}</b><small>${SUB[k] || ""}</small>`}</button>`; };
+  const list = NAV.filter(n => !n[2] || isMgr());
+  const order = ["pos", ...list.map(n => n[0]).filter(k => k !== "pos")];
+  return `<div class="home-wrap">
+    <div class="home-top"><span class="logo">${BUNNY}</span><span class="nm">${esc(shop().name)}</span>
+      <span class="sync"><i class="${S.online?"on":""}"></i>${S.online?"เชื่อมต่อแล้ว":"ขาดการเชื่อมต่อ"}</span>
+      <button class="ic" data-themetoggle title="${themeBtnLabel()}">${svg(isDark() ? "sun" : "moon", 18)}${isDark() ? "สว่าง" : "มืด"}</button>
+      <button class="ic" data-lock>${svg("lock", 18)}ล็อก</button></div>
+    <div class="home-center">
+      <div class="hello"><h1>${hi} คุณ${esc(S.staffMe.name)}</h1><p>${thDate(Date.now(), {weekday: "long", day: "numeric", month: "long", year: "numeric"})} · ${isMgr() ? "ผู้จัดการ" : "แคชเชียร์"}${S.shift ? "" : " · ยังไม่ได้เปิดกะ"}</p></div>
+      <div class="tiles">${order.map(k => tile(list.find(n => n[0] === k))).join("")}</div>
+    </div></div>`;
+}
+
 /* ================= modal / toast ================= */
 function modal(html, cls = "", focus = true){
   $("#modalRoot").onclick = null;
@@ -2353,7 +2428,8 @@ document.addEventListener("click", async e => {
   if ("themetoggle" in d) return toggleTheme();
   if (await opsClick(b, d)) return;
   if ("lock" in d) return lock();
-  if (d.nav) { clearDraft(); viewLoad(d.nav); S.view = d.nav; ss.set("crumb-view", d.nav); if (d.nav === "report") S.rep.orders = null; window.scrollTo(0, 0); return render(); }
+  if (d.nav) return go(d.nav);
+  if ("back" in d) { if (navDepth > 0) history.back(); else go("home", false); return; }
   if (d.cat) { S.cat = d.cat; return render(); }
   if (d.add) { const m = S.menu.find(x => x.id === d.add); if (!m) return; return (m.opts?.length || m.sweet) ? openOptions(m) : addToCart(m); }
   if (d.inc) { const l = S.cart.find(x => x.key === d.inc), m = S.menu.find(x => x.id === l?.id);
@@ -2382,7 +2458,7 @@ document.addEventListener("click", async e => {
   if ("qrsim" in d) { if (AQ) await store.call("POST", `/api/payments/qr/${AQ.id}/simulate`, {}); return; }
   if (d.cash) { $("#cashIn").value = d.cash; return updateChange(); }
   if (b.id === "confirmPay") return confirmPay();
-  if ("goshop" in d) { closeModal(); S.view = "shop"; return render(); }
+  if ("goshop" in d) { closeModal(); return go("shop"); }
   if (d.st) return store.call("PATCH", `/api/orders/${d.st}/status`, {status: d.to});
   if (d.rcpt) { const o = S.today.find(x => x.id === d.rcpt); if (o) showReceipt(o); return; }
   if (d.refund) { const o = findOrder(d.refund); if (o) openRefund(o); return; }

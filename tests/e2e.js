@@ -17,6 +17,15 @@ const shots = process.argv[3] || path.join(__dirname, "..", "data");
   await p.goto(base); await p.waitForSelector("#setupForm");
   step("first run shows setup with brand", (await p.textContent(".brand-name")).includes("Butter Bunny"));
   await p.fill("#su-name", "นุ่น"); await p.fill("#su-pin", "1234"); await p.fill("#su-pin2", "1234"); await p.click("#setupForm button.primary");
+  await p.waitForSelector(".tiles");
+  step("signing in opens the home screen with big menu tiles", (await p.$$(".tiles .tile")).length === 12 && !(await p.$(".rail")));
+  await p.screenshot({ path: path.join(shots, "e2e-home.png") });
+  await p.click(".tile[data-nav=members]"); await p.waitForSelector(".backbtn");
+  await p.click(".backbtn"); await p.waitForSelector(".tiles");
+  step("back button returns to the home screen", !!(await p.$(".tiles")));
+  await p.click(".tile[data-nav=menu]"); await p.waitForSelector(".backbtn"); await p.goBack(); await p.waitForSelector(".tiles");
+  step("browser back button also returns home", !!(await p.$(".tiles")));
+  await p.click(".tile[data-nav=pos]");
   await p.waitForSelector("[data-add]");
   step("setup signs in and loads 35 seeded menu items", (await p.$$("[data-add]")).length === 35);
   step("sale screen asks to open a shift first", (await p.textContent(".banner.warn")).includes("ยังไม่ได้เปิดกะ"));
@@ -115,7 +124,7 @@ const shots = process.argv[3] || path.join(__dirname, "..", "data");
   await qp.waitForTimeout(1500);
   const spoken = await qp.evaluate(() => window.__spoken);
   step("ready order is announced in Thai", spoken.some(t => /^ออเดอร์ที่ ศูนย์ ศูนย์ (หนึ่ง|สอง) ทำเสร็จแล้ว เชิญรับได้เลยค่ะ$/.test(t)), spoken[0] || "nothing spoken");
-  await qp.click("#soundChip", { force: true }); await qp.waitForTimeout(200); await qp.screenshot({ path: path.join(shots, "e2e-queue-panel.png") });
+  await qp.click("#gear"); await qp.waitForTimeout(500); await qp.screenshot({ path: path.join(shots, "e2e-queue-panel.png") });
 
   // pre-order with deposit, then pickup
   await p.click("[data-nav=pre]"); await p.click('[data-preedit=""]');
